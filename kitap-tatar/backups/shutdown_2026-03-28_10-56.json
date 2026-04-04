@@ -1,0 +1,173 @@
+{
+  "words": [
+    {
+      "id": 11,
+      "tatar": "Бер",
+      "russian": "Один",
+      "category": "Числа",
+      "timesCorrect": 0,
+      "timesWrong": 0,
+      "easeFactor": 2.5
+    },
+    {
+      "id": 15,
+      "tatar": "Зәңгәр",
+      "russian": "Синий",
+      "category": "Цвета",
+      "timesCorrect": 5,
+      "timesWrong": 0,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 12,
+      "tatar": "Ике",
+      "russian": "Два",
+      "category": "Числа",
+      "timesCorrect": 3,
+      "timesWrong": 1,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.45
+    },
+    {
+      "id": 7,
+      "tatar": "Ипи",
+      "russian": "Хлеб",
+      "category": "Еда",
+      "timesCorrect": 2,
+      "timesWrong": 3,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 1,
+      "tatar": "Исәнме",
+      "russian": "Здравствуйте",
+      "category": "Приветствия",
+      "timesCorrect": 1,
+      "timesWrong": 1,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 14,
+      "tatar": "Кызыл",
+      "russian": "Красный",
+      "category": "Цвета",
+      "timesCorrect": 2,
+      "timesWrong": 0,
+      "lastReviewed": "2026-02-25",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 3,
+      "tatar": "Рәхмәт",
+      "russian": "Спасибо",
+      "category": "Вежливость",
+      "timesCorrect": 2,
+      "timesWrong": 1,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 2,
+      "tatar": "Сау бул",
+      "russian": "До свидания",
+      "category": "Приветствия",
+      "timesCorrect": 2,
+      "timesWrong": 1,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 6,
+      "tatar": "Су",
+      "russian": "Вода",
+      "category": "Еда",
+      "timesCorrect": 3,
+      "timesWrong": 3,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 8,
+      "tatar": "Сөт",
+      "russian": "Молоко",
+      "category": "Еда",
+      "timesCorrect": 1,
+      "timesWrong": 1,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 5,
+      "tatar": "Юк",
+      "russian": "Нет",
+      "category": "Основное",
+      "timesCorrect": 3,
+      "timesWrong": 0,
+      "lastReviewed": "2026-02-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 16,
+      "tatar": "Яшел",
+      "russian": "Зеленый",
+      "category": "Цвета",
+      "timesCorrect": 3,
+      "timesWrong": 4,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 4,
+      "tatar": "Әйе",
+      "russian": "Да",
+      "category": "Основное",
+      "timesCorrect": 1,
+      "timesWrong": 0,
+      "lastReviewed": "2026-02-25",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 10,
+      "tatar": "Әни",
+      "russian": "Мама",
+      "category": "Семья",
+      "timesCorrect": 1,
+      "timesWrong": 0,
+      "lastReviewed": "2026-02-25",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 9,
+      "tatar": "Әти",
+      "russian": "Папа",
+      "category": "Семья",
+      "timesCorrect": 0,
+      "timesWrong": 3,
+      "lastReviewed": "2026-03-28",
+      "easeFactor": 2.5
+    },
+    {
+      "id": 13,
+      "tatar": "Өч",
+      "russian": "Три",
+      "category": "Числа",
+      "timesCorrect": 0,
+      "timesWrong": 0,
+      "easeFactor": 2.5
+    }
+  ],
+  "categories": [
+    "Вежливость",
+    "Еда",
+    "Основное",
+    "Приветствия",
+    "Семья",
+    "Цвета",
+    "Числа"
+  ],
+  "exportDate": "2026-03-28",
+  "totalWords": 16
+}

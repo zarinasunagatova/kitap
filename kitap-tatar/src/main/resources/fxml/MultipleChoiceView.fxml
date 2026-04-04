@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="TOP_CENTER" prefHeight="600" prefWidth="900" spacing="15" styleClass="root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.tatar.learn.controllers.MultipleChoiceController">
+    
+    <padding>
+        <Insets bottom="20" left="20" right="20" top="20" />
+    </padding>
+    
+    <Label style="-fx-font-size: 32px;" styleClass="main-title" text="Грамматика: множественный выбор" />
+    
+    <Separator />
+    
+    <!-- Фильтр по категориям -->
+    <HBox alignment="CENTER" spacing="15">
+        <Label style="-fx-font-size: 14px;" text="Категория:" />
+        <ComboBox fx:id="categoryCombo" prefWidth="200" styleClass="combo-box" />
+    </HBox>
+    
+    <Separator />
+    
+    <!-- Прогресс -->
+    <HBox alignment="CENTER" spacing="20">
+        <Label fx:id="progressLabel" style="-fx-font-size: 12px; -fx-text-fill: #666;" text="📈 Прогресс: 0 из 0" />
+    </HBox>
+    
+    <!-- Вопрос -->
+    <Label fx:id="questionLabel" style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #4a2c5a; -fx-wrap-text: true;" text="Вопрос:" wrapText="true" />
+    
+    <!-- Multiple choice кнопки (видимы по умолчанию) -->
+    <GridPane fx:id="multipleChoiceGrid" alignment="CENTER" hgap="15" vgap="15" VBox.vgrow="ALWAYS" visible="true" managed="true">
+        <columnConstraints>
+            <ColumnConstraints halignment="CENTER" hgrow="ALWAYS" minWidth="250" prefWidth="300" />
+            <ColumnConstraints halignment="CENTER" hgrow="ALWAYS" minWidth="250" prefWidth="300" />
+        </columnConstraints>
+        <rowConstraints>
+            <RowConstraints minHeight="80" prefHeight="90" valignment="CENTER" vgrow="ALWAYS" />
+            <RowConstraints minHeight="80" prefHeight="90" valignment="CENTER" vgrow="ALWAYS" />
+        </rowConstraints>
+        
+        <Button fx:id="option1" styleClass="test-option-button" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+        <Button fx:id="option2" styleClass="test-option-button" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+        <Button fx:id="option3" styleClass="test-option-button" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+        <Button fx:id="option4" styleClass="test-option-button" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+    </GridPane>
+    
+    <!-- Matching контейнер (скрыт по умолчанию) -->
+    <VBox fx:id="matchingContainer" spacing="15" visible="false" managed="false" styleClass="matching-container">
+        
+        <Label fx:id="matchingHeader" styleClass="matching-header" text="Соедините татарские слова с правильными переводами:" />
+        
+        <GridPane fx:id="matchingGrid" styleClass="matching-grid" hgap="20" vgap="15">
+            <padding>
+                <Insets bottom="10" left="10" right="10" top="10" />
+            </padding>
+            <!-- GridPane пустой, строки добавляются в коде -->
+        </GridPane>
+        
+        <Button fx:id="checkMatchingButton" styleClass="matching-check-button" text="✅ Проверить все сопоставления" />
+        
+    </VBox>
+    
+    <Button fx:id="nextButton" styleClass="test-next-button" text="Следующее упражнение →" />
+    
+    <Label fx:id="feedbackLabel" style="-fx-font-size: 16px; -fx-padding: 10; -fx-wrap-text: true;" wrapText="true" />
+    
+    <Label fx:id="statsLabel" style="-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #e6d9f2; -fx-background-radius: 15;" 
+           text="📊 Статистика: 0/0 (0%)" />
+    
+</VBox>

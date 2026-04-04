@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="TOP_CENTER" prefHeight="700" prefWidth="1000" spacing="10" 
+      styleClass="test-root" xmlns:fx="http://javafx.com/fxml/1" 
+      xmlns="http://javafx.com/javafx/21" 
+      fx:controller="com.tatar.learn.controllers.TestController">
+    
+    <padding>
+        <Insets bottom="10" left="10" right="10" top="10" />
+    </padding>
+    
+    <!-- Заголовок -->
+    <Label styleClass="main-title" text="Грамматические упражнения / Грамматик күнегүләр" />
+    
+    <Separator fx:id="separator" styleClass="separator" />
+    
+    <!-- Табы с разными типами упражнений -->
+    <TabPane fx:id="exerciseTabs" styleClass="test-tab-pane" 
+             tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+        
+        <!-- Вкладка множественного выбора -->
+        <Tab fx:id="multipleChoiceTab" text="📝 Множественный выбор" styleClass="test-tab">
+            <ScrollPane fx:id="multipleChoiceScroll" styleClass="test-scroll-pane" fitToWidth="true" fitToHeight="true">
+                <VBox fx:id="multipleChoiceContainer" styleClass="test-container" alignment="CENTER" spacing="10" />
+            </ScrollPane>
+        </Tab>
+        
+        <!-- Вкладка ввода с клавиатуры -->
+        <Tab fx:id="typingTab" text="⌨️ Ввод с клавиатуры" styleClass="test-tab">
+            <ScrollPane fx:id="typingScroll" styleClass="test-scroll-pane" fitToWidth="true" fitToHeight="true">
+                <VBox fx:id="typingContainer" styleClass="test-container" alignment="CENTER" spacing="10" />
+            </ScrollPane>
+        </Tab>
+        
+        <!-- Вкладка теории грамматики -->
+        <Tab fx:id="grammarTab" text="📖 Теория" styleClass="test-tab">
+            <ScrollPane fx:id="grammarScroll" styleClass="test-scroll-pane" fitToWidth="true" fitToHeight="true">
+                <VBox fx:id="grammarContainer" styleClass="test-container" alignment="CENTER" spacing="10" />
+            </ScrollPane>
+        </Tab>
+        
+    </TabPane>
+    
+    <!-- Статусная строка -->
+    <HBox fx:id="statusBar" alignment="CENTER_RIGHT" styleClass="status-bar">
+        <Label fx:id="statusLabel" styleClass="status-label" 
+               text="✅ Выберите тип упражнения для закрепления грамматики" />
+    </HBox>
+</VBox>

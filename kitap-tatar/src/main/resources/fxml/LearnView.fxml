@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="TOP_CENTER" prefHeight="700" prefWidth="1000" spacing="10" styleClass="root" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21" fx:controller="com.tatar.learn.controllers.LearnController">
+        
+    <padding>
+        <Insets bottom="10" left="10" right="10" top="10" />
+    </padding>
+    
+    <!-- СТАТИСТИКА -->
+    <HBox alignment="CENTER" spacing="10">
+        <Label fx:id="progressLabel" styleClass="progress-label" text="Выучено: 0 из 16 (средний 0%)" />
+        <Label fx:id="categoryLabel" styleClass="category-label" text="все" />
+    </HBox>
+    
+    <!-- КАРТОЧКА -->
+    <StackPane alignment="CENTER" maxWidth="700" VBox.vgrow="ALWAYS">
+        <!-- Лицевая сторона -->
+        <VBox fx:id="cardFront" alignment="CENTER" spacing="20" styleClass="word-card-front">
+            <Label fx:id="tatarWordLabel" styleClass="word-large" text="Бер" />
+            <Button fx:id="playButton" prefHeight="40.0" prefWidth="40.0" styleClass="play-button" text="🔊" />
+        </VBox>
+        
+        <!-- Обратная сторона -->
+        <VBox fx:id="cardBack" alignment="CENTER" managed="false" spacing="20" styleClass="word-card-back" visible="false">
+            <Label fx:id="russianWordLabel" styleClass="word-large" text="Один" />
+        </VBox>
+    </StackPane>
+    
+    <!-- ПОДСКАЗКА -->
+    <Label styleClass="hint-label" text="нажми на карточку" />
+    
+    <!-- КНОПКИ ОЦЕНКИ (SM-2) -->
+    <HBox alignment="CENTER" spacing="10">
+        <Button fx:id="againButton" prefWidth="100" styleClass="rating-button again-button" text="Снова" />
+        <Button fx:id="hardButton" prefWidth="100" styleClass="rating-button hard-button" text="Трудно" />
+        <Button fx:id="goodButton" prefWidth="100" styleClass="rating-button good-button" text="Хорошо" />
+        <Button fx:id="easyButton" prefWidth="100" styleClass="rating-button easy-button" text="Легко" />
+    </HBox>
+    
+    <!-- СТРЕЛКИ -->
+    <HBox alignment="CENTER" spacing="150">
+        <Button fx:id="prevButton" prefHeight="26.0" prefWidth="50.0" styleClass="nav-button" text="◀" />
+        <Button fx:id="nextButton" prefHeight="26.0" prefWidth="50.0" styleClass="nav-button" text="▶" />
+    </HBox>
+    
+    <!-- ФИЛЬТР -->
+    <HBox alignment="CENTER" spacing="5">
+        <ComboBox fx:id="categoryCombo" prefHeight="26.0" prefWidth="170.0" promptText="Все категории" />
+        <Button fx:id="applyFilterButton" styleClass="action-button" text="OK" />
+    </HBox>
+    
+    <!-- СТАТУС ГОЛОСА -->
+    <HBox alignment="CENTER_RIGHT">
+        <Label fx:id="voiceStatusLabel" styleClass="voice-status" />
+    </HBox>
+</VBox>
