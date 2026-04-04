@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
@@ -31,6 +32,16 @@
         <!-- Обратная сторона -->
         <VBox fx:id="cardBack" alignment="CENTER" managed="false" spacing="20" styleClass="word-card-back" visible="false">
             <Label fx:id="russianWordLabel" styleClass="word-large" text="Один" />
+            
+            <!-- НОВАЯ ОБЛАСТЬ ДЛЯ ПРИМЕРОВ -->
+            <VBox fx:id="examplesContainer" alignment="CENTER" spacing="10" styleClass="examples-container">
+                <Label styleClass="examples-title" text="📖 Примеры использования" />
+                <ScrollPane fx:id="examplesScroll" fitToWidth="true" maxHeight="200" styleClass="examples-scroll" visible="false">
+                    <VBox fx:id="examplesList" alignment="CENTER" spacing="8" styleClass="examples-list">
+                        <!-- Примеры будут добавляться динамически -->
+                    </VBox>
+                </ScrollPane>
+            </VBox>
         </VBox>
     </StackPane>
     

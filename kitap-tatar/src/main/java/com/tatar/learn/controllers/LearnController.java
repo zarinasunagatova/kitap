@@ -6,6 +6,7 @@ import com.tatar.learn.services.TTSService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.animation.*;
 import javafx.util.Duration;
@@ -36,6 +37,9 @@ public class LearnController implements Initializable {
     @FXML private Label voiceStatusLabel;
     @FXML private Button applyFilterButton;
     @FXML private Label categoryLabel;
+    @FXML private VBox examplesContainer;
+    @FXML private ScrollPane examplesScroll;
+    @FXML private VBox examplesList;
     
     private DatabaseService dbService;
     private TTSService ttsService;
@@ -58,6 +62,16 @@ public class LearnController implements Initializable {
         
         words = dbService.getAllWords();
         filteredWords = new ArrayList<>(words);
+        
+        // Проверяем, есть ли примеры у слов
+        for (Word w : words) {
+            if (w.getExamples() != null && !w.getExamples().isEmpty()) {
+                System.out.println("Word '" + w.getTatar() + "' has " + w.getExamples().size() + " examples");
+                for (String ex : w.getExamples()) {
+                    System.out.println("  - " + ex);
+                }
+            }
+        }
         
         if (filteredWords.isEmpty()) {
             showAlert("Нет слов", "Добавьте слова в словарь");
@@ -317,6 +331,9 @@ public class LearnController implements Initializable {
         tatarWordLabel.setText(word.getTatar());
         russianWordLabel.setText(word.getRussian());
         
+        // ПОКАЗЫВАЕМ ПРИМЕРЫ
+        showExamples(word);
+        
         isFlipped = false;
         cardFront.setVisible(true);
         cardFront.setManaged(true);
@@ -328,17 +345,49 @@ public class LearnController implements Initializable {
         
         // Новая система: цвет в зависимости от статуса SM-2
         if (word.getTimesCorrect() >= 5) {
-            tatarWordLabel.getStyleClass().add("progress-high"); // зеленый (выучено)
+            tatarWordLabel.getStyleClass().add("progress-high");
         } else if (word.getTimesCorrect() >= 2) {
-            tatarWordLabel.getStyleClass().add("progress-medium"); // оранжевый (в процессе)
+            tatarWordLabel.getStyleClass().add("progress-medium");
         } else if (word.getTimesCorrect() > 0) {
-            tatarWordLabel.getStyleClass().add("progress-low"); // розовый (начато)
+            tatarWordLabel.getStyleClass().add("progress-low");
         } else {
-            tatarWordLabel.getStyleClass().add("progress-zero"); // сиреневый (новое)
+            tatarWordLabel.getStyleClass().add("progress-zero");
         }
         
         updateProgress();
     }
+    
+    private void showExamples(Word word) {
+        examplesList.getChildren().clear();
+        
+        if (word.getExamples() != null && !word.getExamples().isEmpty()) {
+            examplesScroll.setVisible(true);
+            
+            for (String example : word.getExamples()) {
+                HBox exampleBox = new HBox();
+                exampleBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                exampleBox.getStyleClass().add("example-item");
+                exampleBox.setSpacing(8);
+                
+                Label iconLabel = new Label("📖");
+                iconLabel.getStyleClass().add("example-icon");
+                
+                Label exampleLabel = new Label(example);
+                exampleLabel.getStyleClass().add("example-text");
+                exampleLabel.setWrapText(true);
+                
+                exampleBox.getChildren().addAll(iconLabel, exampleLabel);
+                examplesList.getChildren().add(exampleBox);
+            }
+        } else {
+            // Если нет примеров, показываем сообщение
+            examplesScroll.setVisible(true);
+            Label noExamplesLabel = new Label("Нет примеров для этого слова");
+            noExamplesLabel.getStyleClass().add("no-examples-label");
+            examplesList.getChildren().add(noExamplesLabel);
+        }
+    }
+
     
     private void updateProgress() {
         if (filteredWords.isEmpty()) {

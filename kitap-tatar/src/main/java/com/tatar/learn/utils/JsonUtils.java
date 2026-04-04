@@ -53,6 +53,11 @@ public class JsonUtils {
     public static <T> T fromJson(String json, Class<T> classOfT) {
         return gson.fromJson(json, classOfT);
     }
+    
+    // НОВЫЙ МЕТОД: Конвертировать JSON строку в объект с типом
+    public static <T> T fromJson(String json, Type typeOfT) {
+        return gson.fromJson(json, typeOfT);
+    }
 }
 
 // Адаптер для LocalDate

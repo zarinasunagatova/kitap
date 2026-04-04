@@ -167,6 +167,10 @@ public class CultureController implements Initializable {
         itemsGrid.setVisible(false);
         detailView.setVisible(true);
         detailView.setManaged(true);
+        
+        // Принудительно растягиваем
+        detailView.setMaxHeight(Double.MAX_VALUE);
+        detailView.setPrefHeight(Region.USE_COMPUTED_SIZE);
     }
     
     private void showGrid() {

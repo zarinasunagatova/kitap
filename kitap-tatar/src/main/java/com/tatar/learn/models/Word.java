@@ -1,30 +1,41 @@
 package com.tatar.learn.models;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Word {
     private int id;
     private String tatar;
     private String russian;
     private String category;
-    private int timesCorrect;          // основное поле для SM-2
+    private List<String> examples;  // НОВОЕ ПОЛЕ
+    private int timesCorrect;
     private int timesWrong;
     private LocalDate lastReviewed;
     private double easeFactor;
     
     // Конструктор с категорией
     public Word(String tatar, String russian, String category) {
+        this(tatar, russian, category, new ArrayList<>());
+    }
+    
+    // НОВЫЙ КОНСТРУКТОР с примерами
+    public Word(String tatar, String russian, String category, List<String> examples) {
         this.tatar = tatar;
         this.russian = russian;
         this.category = category;
+        this.examples = examples != null ? examples : new ArrayList<>();
         this.timesCorrect = 0;
         this.timesWrong = 0;
         this.lastReviewed = null;
         this.easeFactor = 2.5;
     }
     
-    // Пустой конструктор для загрузки из БД
-    public Word() {}
+    // Пустой конструктор
+    public Word() {
+        this.examples = new ArrayList<>();
+    }
     
     // Геттеры и сеттеры
     public int getId() { return id; }
@@ -38,7 +49,10 @@ public class Word {
     
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
-  
+    
+    public List<String> getExamples() { return examples; }
+    public void setExamples(List<String> examples) { this.examples = examples; }
+    
     public int getTimesCorrect() { return timesCorrect; }
     public void setTimesCorrect(int timesCorrect) { this.timesCorrect = timesCorrect; }
     
@@ -51,19 +65,32 @@ public class Word {
     public double getEaseFactor() { return easeFactor; }
     public void setEaseFactor(double easeFactor) { this.easeFactor = easeFactor; }
     
-    // Увеличение количества правильных ответов
+    // Добавить пример
+    public void addExample(String example) {
+        if (examples == null) {
+            examples = new ArrayList<>();
+        }
+        examples.add(example);
+    }
+    
+    // Получить случайный пример
+    public String getRandomExample() {
+        if (examples == null || examples.isEmpty()) {
+            return null;
+        }
+        return examples.get((int)(Math.random() * examples.size()));
+    }
+    
     public void incrementCorrect() {
         timesCorrect++;
         lastReviewed = LocalDate.now();
     }
     
-    // Отметить как неправильный ответ
     public void incrementWrong() {
         timesWrong++;
         lastReviewed = LocalDate.now();
     }
     
-    // SM-2 алгоритм расчета следующего интервала
     public int getNextReviewInterval() {
         if (timesCorrect == 0) return 1;
         if (timesCorrect == 1) return 3;
@@ -83,6 +110,7 @@ public class Word {
     @Override
     public String toString() {
         return tatar + " - " + russian + " [" + category + "] (" + 
-               timesCorrect + " прав., " + timesWrong + " неправ.)";
+               timesCorrect + " прав., " + timesWrong + " неправ.)" +
+               (examples != null && !examples.isEmpty() ? " +" + examples.size() + " примеров" : "");
     }
 }

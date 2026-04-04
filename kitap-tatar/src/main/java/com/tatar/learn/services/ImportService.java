@@ -65,11 +65,9 @@ public class ImportService {
                         word.getCategory() != null ? word.getCategory() : "Общее"
                     );
                     
-                    // Если есть примеры, их нужно сохранить отдельно (дополнительно)
-                    
                     dbService.addWord(newWord);
                     added++;
-                    existingTatars.add(tatar); // добавляем в множество чтобы не дублировать в этом же импорте
+                    existingTatars.add(tatar);
                 } else {
                     skipped++;
                 }
@@ -96,7 +94,6 @@ public class ImportService {
         
         try {
             // Загружаем данные из JSON в специальный формат
-            Type type = new TypeToken<WordsJsonFormat>(){}.getType();
             WordsJsonFormat data = JsonUtils.loadFromFile(filePath, WordsJsonFormat.class);
             
             if (data == null || data.getWords() == null || data.getWords().isEmpty()) {

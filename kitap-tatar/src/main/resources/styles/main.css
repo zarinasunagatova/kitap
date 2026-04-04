@@ -142,6 +142,73 @@
 }
 
 /* ==========================================================================
+   EXAMPLES SECTION - ДЛЯ КАРТОЧЕК ИЗУЧЕНИЯ
+   ========================================================================== */
+.examples-container {
+    -fx-background-color: #f8f4ff;
+    -fx-background-radius: 15;
+    -fx-padding: 15;
+    -fx-border-color: #e5d9f5;
+    -fx-border-radius: 15;
+    -fx-border-width: 1;
+    -fx-max-width: 500;
+}
+
+.examples-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #9b87c9;
+    -fx-padding: 0 0 5 0;
+}
+
+.examples-scroll {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.examples-scroll .viewport {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+}
+
+.examples-list {
+    -fx-background-color: transparent;
+    -fx-padding: 5;
+    -fx-spacing: 8;
+}
+
+.example-item {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 8 12;
+    -fx-border-color: #e5d9f5;
+    -fx-border-radius: 10;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 3, 0, 0, 1);
+}
+
+.example-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: #4a3859;
+    -fx-wrap-text: true;
+    -fx-line-spacing: 3;
+}
+
+.example-icon {
+    -fx-font-size: 16px;
+    -fx-text-fill: #9b87c9;
+    -fx-padding: 0 5 0 0;
+}
+
+.no-examples-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #b5a3df;
+    -fx-font-style: italic;
+    -fx-padding: 10;
+}
+
+/* ==========================================================================
    RATING BUTTONS (SM-2) - ДЛЯ КАРТОЧЕК ИЗУЧЕНИЯ СЛОВ
    ========================================================================== */
 .rating-button {
@@ -611,57 +678,91 @@
 
 
    /* Детальный вид - компактная версия */
-   .culture-detail {
+   /* Полноэкранный детальный вид */
+   .culture-detail-fullscreen {
        -fx-background-color: white;
        -fx-background-radius: 20;
-       -fx-padding: 20;
-       -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 15, 0, 0, 5);
-       -fx-max-width: 700;
-       -fx-min-width: 400;
-       -fx-spacing: 15;
+       -fx-padding: 25;
+       -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 20, 0, 0, 5);
+       -fx-alignment: top-center;
    }
 
-   .culture-back-button {
-          -fx-background-color: transparent;
-          -fx-text-fill: #9b87c9;
-          -fx-font-size: 14px;
-          -fx-font-weight: bold;
-          -fx-cursor: hand;
-          -fx-alignment: center-left;
-      }
+   /* Компактный заголовок */
+   .detail-header {
+       -fx-padding: 10 0;
+   }
 
-      .culture-back-button:hover {
-          -fx-text-fill: #7f6bb3;
-          -fx-underline: true;
-      }
    .detail-icon {
-       -fx-font-size: 48px;
+       -fx-font-size: 48px;  /* Маленькая иконка */
    }
 
    .detail-title {
-       -fx-font-size: 22px;
+       -fx-font-size: 20px;  /* Маленький заголовок */
        -fx-font-weight: bold;
        -fx-text-fill: #4a3859;
    }
 
    .detail-title-tatar {
-       -fx-font-size: 15px;
+       -fx-font-size: 14px;  /* Маленький подзаголовок */
        -fx-text-fill: #9b87c9;
        -fx-font-style: italic;
    }
 
    .detail-section-title {
-       -fx-font-size: 15px;
+       -fx-font-size: 14px;
        -fx-font-weight: bold;
        -fx-text-fill: #4a3859;
+       -fx-padding: 5 0;
    }
 
-   .detail-text, .detail-text-tatar {
-       -fx-font-size: 14px;
+   /* TextArea на всю доступную высоту */
+   .detail-text-area {
+       -fx-font-size: 16px;  /* Крупный текст для чтения */
+       -fx-text-fill: #333;
        -fx-wrap-text: true;
-       -fx-line-spacing: 4;
+       -fx-background-color: #faf5ff;
+       -fx-background-radius: 10;
+       -fx-border-color: #b5a3df;
+       -fx-border-radius: 10;
+       -fx-border-width: 1;
+       -fx-padding: 12;
    }
 
+   .detail-text-area .content {
+       -fx-background-color: #faf5ff;
+   }
+
+   .detail-text-area-tatar {
+       -fx-font-size: 16px;
+       -fx-text-fill: #7f6bb3;
+       -fx-wrap-text: true;
+       -fx-background-color: #faf5ff;
+       -fx-background-radius: 10;
+       -fx-border-color: #b5a3df;
+       -fx-border-radius: 10;
+       -fx-border-width: 1;
+       -fx-padding: 12;
+   }
+
+   .detail-text-area-tatar .content {
+       -fx-background-color: #faf5ff;
+   }
+
+   /* Кнопка назад */
+   .culture-back-button {
+       -fx-background-color: transparent;
+       -fx-text-fill: #9b87c9;
+       -fx-font-size: 14px;
+       -fx-font-weight: bold;
+       -fx-cursor: hand;
+       -fx-alignment: center-left;
+       -fx-padding: 5 0;
+   }
+
+   .culture-back-button:hover {
+       -fx-text-fill: #7f6bb3;
+       -fx-underline: true;
+   }
    /* Фильтр */
    .filter-label {
        -fx-font-size: 16px;
