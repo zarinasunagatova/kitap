@@ -10,10 +10,11 @@ public class TTSService {
     private String tatarVoice = null;
     private boolean rhVoiceAvailable = false;
     private String osName;
+    private String platformSupportStatus;
     
     private TTSService() {
         osName = System.getProperty("os.name").toLowerCase();
-        detectTatarVoice();
+        detectPlatformAndVoice();
     }
     
     public static TTSService getInstance() {
@@ -24,133 +25,176 @@ public class TTSService {
     }
     
     /**
-     * Определяет наличие татарского голоса в системе
+     * Определяет платформу и наличие татарского голоса
      */
-    private void detectTatarVoice() {
-        System.out.println("🔍 Поиск татарского голоса...");
+    private void detectPlatformAndVoice() {
+        System.out.println("🖥️ Operating System: " + osName);
         
-        try {
-            // PowerShell команда для получения списка голосов
-            String command = "powershell -Command \"" +
-                "Add-Type -AssemblyName System.Speech; " +
-                "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
-                "$synth.GetInstalledVoices() | " +
-                "ForEach-Object { $_.VoiceInfo.Name }\"";
-            
-            Process process = Runtime.getRuntime().exec(command);
-            
-            // Читаем вывод (используем кодировку CP866 для Windows)
-            BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream(), "CP866")
-            );
-            
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (!line.isEmpty()) {
-                    System.out.println("  Найден голос: " + line);
-                    
-                    // Ищем различные варианты названия татарского голоса
-                    String lowerLine = line.toLowerCase();
-                    if (lowerLine.contains("talgat") || 
-                        lowerLine.contains("talgon") || 
-                        lowerLine.contains("татар") ||
-                        lowerLine.contains("tatar") ||
-                        lowerLine.contains("rhvoice")) {
-                        
-                        tatarVoice = line;
-                        rhVoiceAvailable = true;
-                        System.out.println("✅ Найден татарский голос: " + tatarVoice);
-                        
-                        // Пробуем воспроизвести тестовое сообщение
-                        testVoice();
-                        return;
-                    }
-                }
-            }
-            
-            // Если не нашли, пробуем альтернативные названия
-            String[] possibleVoices = {"Talgat", "Talgon", "RHVoice", "Татар", "Tatar"};
-            for (String voice : possibleVoices) {
-                if (checkVoiceExists(voice)) {
-                    tatarVoice = voice;
-                    rhVoiceAvailable = true;
-                    System.out.println("✅ Найден голос через прямой поиск: " + voice);
-                    testVoice();
-                    return;
-                }
-            }
-            
-            System.out.println("❌ Татарский голос не найден");
-            
-        } catch (Exception e) {
-            System.err.println("Ошибка при поиске голоса: " + e.getMessage());
+        if (osName.contains("win")) {
+            System.out.println("📢 Using Windows SAPI5 for TTS");
+            detectWindowsVoice();
+        } 
+        else if (osName.contains("linux")) {
+            System.out.println("📢 Using Linux Speech Dispatcher for TTS");
+            detectLinuxVoice();
+        }
+        else if (osName.contains("mac")) {
+            // macOS НЕ ПОДДЕРЖИВАЕТ татарский TTS
+            detectMacVoice();
+        }
+        else {
+            platformSupportStatus = "❌ TTS не поддерживается на этой ОС";
+            System.out.println("❌ Unsupported OS for TTS");
             rhVoiceAvailable = false;
         }
     }
     
     /**
-     * Проверяет существование конкретного голоса
+     * Windows: поиск голоса через PowerShell/SAPI5
      */
-    private boolean checkVoiceExists(String voiceName) {
+    private void detectWindowsVoice() {
         try {
-            String command = String.format(
-                "powershell -Command \"" +
+            String command = "powershell -Command \"" +
                 "Add-Type -AssemblyName System.Speech; " +
                 "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
-                "try { $synth.SelectVoice('%s'); Write-Host 'OK' } catch { Write-Host 'FAIL' }\"",
-                voiceName
-            );
-            
+                "$synth.GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }\"";
+
             Process process = Runtime.getRuntime().exec(command);
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(process.getInputStream(), "CP866")
             );
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.isEmpty()) {
+                    String lowerLine = line.toLowerCase();
+                    if (lowerLine.contains("talgat") || 
+                        lowerLine.contains("talgon") || 
+                        lowerLine.contains("rhvoice")) {
+                        tatarVoice = line;
+                        rhVoiceAvailable = true;
+                        platformSupportStatus = "✅ Татарский голос: " + tatarVoice;
+                        System.out.println("✅ Found Tatar voice: " + tatarVoice);
+                        return;
+                    }
+                }
+            }
             
-            String result = reader.readLine();
-            return result != null && result.contains("OK");
+            platformSupportStatus = "⚠️ Татарский голос не найден\nУстановите RHVoice с голосом Talgat";
+            System.out.println(platformSupportStatus);
+            rhVoiceAvailable = false;
             
         } catch (Exception e) {
-            return false;
+            System.err.println("Error detecting Windows voice: " + e.getMessage());
+            platformSupportStatus = "❌ Ошибка определения голоса";
+            rhVoiceAvailable = false;
         }
     }
     
     /**
-     * Тестирует голос (тихо, для проверки)
+     * Linux: проверка Speech Dispatcher и RHVoice
      */
-    private void testVoice() {
+    private void detectLinuxVoice() {
         try {
-            String testCommand = String.format(
-                "powershell -Command \"" +
-                "Add-Type -AssemblyName System.Speech; " +
-                "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
-                "$synth.SelectVoice('%s'); " +
-                "$synth.Volume = 30; " +  // тихо
-                "$synth.Speak('Test');\"",
-                tatarVoice
+            ProcessBuilder checkPb = new ProcessBuilder("which", "speech-dispatcher");
+            Process checkProcess = checkPb.start();
+            int exitCode = checkProcess.waitFor();
+            
+            if (exitCode != 0) {
+                platformSupportStatus = "⚠️ speech-dispatcher не установлен\n" +
+                    "Установите: sudo apt-get install speech-dispatcher rhvoice rhvoice-tatal";
+                System.out.println(platformSupportStatus);
+                rhVoiceAvailable = false;
+                return;
+            }
+            
+            String[] checkVoiceCmd = {
+                "sh", "-c", "spd-say -o rhvoice --help 2>&1 | grep -i talgat"
+            };
+            
+            Process voiceCheck = Runtime.getRuntime().exec(checkVoiceCmd);
+            BufferedReader reader = new BufferedReader(
+                new InputStreamReader(voiceCheck.getInputStream())
             );
-            Runtime.getRuntime().exec(testCommand);
+            
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.toLowerCase().contains("talgat") || 
+                    line.toLowerCase().contains("tatar")) {
+                    tatarVoice = "rhvoice-talgat";
+                    rhVoiceAvailable = true;
+                    platformSupportStatus = "✅ Татарский голос: RHVoice/Talgat";
+                    System.out.println("✅ Found Tatar voice on Linux");
+                    return;
+                }
+            }
+            
+            platformSupportStatus = "⚠️ RHVoice установлен, но голос Talgat не найден\n" +
+                "Установите: sudo apt-get install rhvoice rhvoice-tatal";
+            rhVoiceAvailable = false;
+            
         } catch (Exception e) {
-            // Игнорируем, это просто тест
+            System.err.println("Error detecting Linux voice: " + e.getMessage());
+            platformSupportStatus = "⚠️ Ошибка определения голоса\n" +
+                "Установите RHVoice: https://github.com/RHVoice/RHVoice";
+            rhVoiceAvailable = false;
         }
     }
     
     /**
-     * Произносит текст
+     * macOS: ТАТАРСКИЙ TTS НЕ ПОДДЕРЖИВАЕТСЯ
+     * RHVoice для macOS не включает татарский язык
+     */
+    private void detectMacVoice() {
+        // Официально: RHVoice на macOS НЕ поддерживает татарский язык
+        // Источник: https://github.com/RHVoice/RHVoice
+        platformSupportStatus = "❌ Татарский голос не поддерживается на macOS\n" +
+            "RHVoice для macOS не включает татарский язык.\n" +
+            "Рекомендуется использовать Windows или Linux для озвучивания на татарском.";
+        
+        System.out.println(platformSupportStatus);
+        rhVoiceAvailable = false;
+        tatarVoice = null;
+    }
+    
+    /**
+     * Произносит текст (кроссплатформенная версия)
      */
     public CompletableFuture<Void> speak(String text) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         
         if (!rhVoiceAvailable) {
-            System.out.println("🔊 (без звука) " + text);
+            // На macOS просто логируем, без звука
+            System.out.println("🔊 (TTS недоступен) " + text);
             future.complete(null);
             return future;
         }
         
         try {
-            // Экранируем кавычки
+            if (osName.contains("win")) {
+                speakWindows(text, future);
+            } 
+            else if (osName.contains("linux")) {
+                speakLinux(text, future);
+            }
+            else {
+                // macOS и другие ОС сюда не попадают (rhVoiceAvailable = false)
+                future.completeExceptionally(new Exception("TTS not supported on this OS"));
+            }
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+        
+        return future;
+    }
+    
+    /**
+     * Windows: через PowerShell + SAPI5
+     */
+    private void speakWindows(String text, CompletableFuture<Void> future) {
+        try {
             String escapedText = text.replace("'", "''");
-            
             String command = String.format(
                 "powershell -Command \"" +
                 "Add-Type -AssemblyName System.Speech; " +
@@ -161,16 +205,43 @@ public class TTSService {
             );
             
             Process process = Runtime.getRuntime().exec(command);
+            new Thread(() -> {
+                try {
+                    process.waitFor();
+                    future.complete(null);
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }).start();
             
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+    }
+    
+    /**
+     * Linux: через Speech Dispatcher
+     */
+    private void speakLinux(String text, CompletableFuture<Void> future) {
+        try {
+            String escapedText = text.replace("'", "'\\''");
+            
+            String[] command = {
+                "sh", "-c", 
+                String.format("spd-say -o rhvoice -e '%s'", escapedText)
+            };
+            
+            Process process = Runtime.getRuntime().exec(command);
             new Thread(() -> {
                 try {
                     int exitCode = process.waitFor();
-                    
                     if (exitCode == 0) {
                         future.complete(null);
                     } else {
-                        // Если не сработало, пробуем без выбора голоса
-                        fallbackSpeak(text, future);
+                        String[] fallbackCmd = {"sh", "-c", String.format("spd-say '%s'", escapedText)};
+                        Process fallback = Runtime.getRuntime().exec(fallbackCmd);
+                        fallback.waitFor();
+                        future.complete(null);
                     }
                 } catch (Exception e) {
                     future.completeExceptionally(e);
@@ -180,36 +251,8 @@ public class TTSService {
         } catch (Exception e) {
             future.completeExceptionally(e);
         }
-        
-        return future;
     }
     
-    /**
-     * Запасной вариант - без выбора конкретного голоса
-     */
-    private void fallbackSpeak(String text, CompletableFuture<Void> originalFuture) {
-        try {
-            String escapedText = text.replace("'", "''");
-            String command = String.format(
-                "powershell -Command \"" +
-                "Add-Type -AssemblyName System.Speech; " +
-                "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; " +
-                "$synth.Speak('%s');\"",
-                escapedText
-            );
-            
-            Process process = Runtime.getRuntime().exec(command);
-            process.waitFor();
-            originalFuture.complete(null);
-            
-        } catch (Exception e) {
-            originalFuture.completeExceptionally(e);
-        }
-    }
-    
-    /**
-     * Произносит с обратной связью для кнопки
-     */
     public void speakWithFeedback(String text, Button button, String originalText) {
         Platform.runLater(() -> {
             button.setText("🔊 ...");
@@ -230,30 +273,23 @@ public class TTSService {
         });
     }
     
-    /**
-     * Проверка доступности голоса
-     */
     public boolean isAvailable() {
         return rhVoiceAvailable;
     }
     
-    /**
-     * Получение статуса для отображения
-     */
     public String getStatus() {
+        if (platformSupportStatus != null) {
+            return platformSupportStatus;
+        }
         if (rhVoiceAvailable) {
             return "✅ Татарский голос: " + tatarVoice;
-        } else {
-            return "❌ Татарский голос не найден";
         }
+        return "❌ Татарский голос не найден";
     }
     
-    /**
-     * Принудительная проверка голоса (можно вызвать из настроек)
-     */
     public void refresh() {
         rhVoiceAvailable = false;
         tatarVoice = null;
-        detectTatarVoice();
+        detectPlatformAndVoice();
     }
 }

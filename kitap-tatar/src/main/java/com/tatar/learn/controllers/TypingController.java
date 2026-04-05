@@ -32,34 +32,53 @@ public class TypingController implements Initializable {
     private int totalAttempts = 0;
     private int correctAttempts = 0;
     private List<GrammarExercise> answeredExercises = new ArrayList<>();
+    private static final String EXERCISE_TYPE = "typing";
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        grammarService = GrammarService.getInstance();
-        currentExercises = new ArrayList<>(grammarService.getAllExercises());
-        
-        if (currentExercises.isEmpty()) {
-            showAlert("Нет упражнений", "Сначала добавьте грамматические упражнения в файл exercises.json");
-            return;
+        try {
+            grammarService = GrammarService.getInstance();
+            
+            // Получаем валидные упражнения нужных типов
+            List<GrammarExercise> validTyping = grammarService.getExercisesByType(EXERCISE_TYPE);
+            
+            // Фильтруем только валидные (хотя сервис уже должен отфильтровать)
+            currentExercises = new ArrayList<>();
+            currentExercises.addAll(validTyping);
+            
+            // Проверяем, есть ли хоть какие-то упражнения
+            if (currentExercises.isEmpty()) {
+                showAlert("Нет доступных упражнений", 
+                    "Нет корректных упражнений для отображения.\n" +
+                    "Проверьте файл exercises.json на наличие ошибок.");
+                return;
+            }
+            
+            setupCategoryFilter();
+            setupButtons();
+            setupEnterKeyHandler();
+            loadNewQuestion();
+            updateStats();
+            updateProgress();
+            
+        } catch (Exception e) {
+            System.err.println("Error initializing MultipleChoiceController: " + e.getMessage());
+            e.printStackTrace();
         }
-        
-        setupCategoryFilter();
-        setupButtons();
-        setupEnterKeyHandler();
-        loadNewQuestion();
-        updateStats();
-        updateProgress();
     }
+
     
     private void setupCategoryFilter() {
         if (categoryCombo != null) {
             categoryCombo.getItems().add("Все категории");
-            Set<String> categories = grammarService.getCategories();
+            
+            // ИСПРАВЛЕНО: используем ТОЛЬКО категории упражнений
+            Set<String> categories = grammarService.getExerciseCategories();
             if (categories != null && !categories.isEmpty()) {
                 categoryCombo.getItems().addAll(categories);
             }
-            categoryCombo.getSelectionModel().selectFirst();
             
+            categoryCombo.getSelectionModel().selectFirst();
             categoryCombo.setOnAction(e -> filterByCategory());
         }
     }
@@ -67,25 +86,98 @@ public class TypingController implements Initializable {
     private void filterByCategory() {
         String selectedCategory = categoryCombo.getValue();
         
-        if (selectedCategory == null || selectedCategory.equals("Все категории")) {
-            currentExercises = new ArrayList<>(grammarService.getAllExercises());
-        } else {
-            currentExercises = grammarService.getExercisesByCategory(selectedCategory);
+        // Сохраняем предыдущую категорию
+        String previousCategory = null;
+        if (!currentExercises.isEmpty() && currentExercises.get(0) != null) {
+            previousCategory = currentExercises.get(0).getCategory();
         }
         
-        if (currentExercises.isEmpty()) {
-            showAlert("Нет упражнений", "В этой категории нет упражнений");
+        // Фильтруем по типу И категории
+        List<GrammarExercise> newExercises = grammarService.getExercisesByTypeAndCategory(EXERCISE_TYPE, selectedCategory);
+        
+        if (newExercises.isEmpty()) {
+            // Показываем пустое состояние
+            showEmptyCategoryState(selectedCategory);
             return;
         }
         
-        // Сбрасываем статистику при смене категории
+        // Обновляем список упражнений
+        currentExercises = newExercises;
+        
+        // Сбрасываем статистику
         answeredExercises.clear();
         totalAttempts = 0;
         correctAttempts = 0;
         
+        // Загружаем новый вопрос
         loadNewQuestion();
         updateStats();
         updateProgress();
+        
+        // Очищаем сообщение о пустой категории
+        clearEmptyStateMessage();
+    }
+
+    private void showEmptyCategoryState(String category) {
+        // Очищаем вопрос
+        if (questionLabel != null) {
+            questionLabel.setText("📭 В категории \"" + category + "\" нет упражнений для ввода");
+            questionLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 18px;");
+        }
+        
+        // Очищаем и отключаем поле ввода
+        if (answerField != null) {
+            answerField.clear();
+            answerField.setDisable(true);
+            answerField.setPromptText("Нет доступных упражнений");
+        }
+        
+        // Очищаем подсказку
+        if (hintLabel != null) {
+            hintLabel.setText("");
+        }
+        
+        if (categoryLabel != null) {
+            categoryLabel.setText("📚 Категория: " + category + " (пусто)");
+        }
+        
+        // Отключаем кнопки
+        if (checkButton != null) checkButton.setDisable(true);
+        if (nextButton != null) nextButton.setDisable(true);
+        
+        // Очищаем фидбек
+        if (feedbackLabel != null) {
+            feedbackLabel.setText("Выберите другую категорию с упражнениями");
+            feedbackLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 14px; -fx-font-style: italic;");
+        }
+        
+        // Обновляем прогресс
+        if (progressLabel != null) {
+            progressLabel.setText("📈 Прогресс: 0 из 0 упражнений");
+        }
+        
+        // Обновляем статистику
+        if (statsLabel != null) {
+            statsLabel.setText("📊 Статистика: 0/0 (0%)");
+        }
+        
+        // Очищаем текущее упражнение
+        currentExercise = null;
+    }
+
+    private void clearEmptyStateMessage() {
+        if (questionLabel != null) {
+            questionLabel.setStyle("-fx-text-fill: #4a2c5a; -fx-font-size: 20px;");
+        }
+        if (answerField != null) {
+            answerField.setDisable(false);
+            answerField.setPromptText("Введите ответ...");
+        }
+        if (feedbackLabel != null) {
+            feedbackLabel.setStyle("");
+            feedbackLabel.setText("");
+        }
+        if (checkButton != null) checkButton.setDisable(false);
     }
     
     private void setupButtons() {
@@ -183,7 +275,7 @@ public class TypingController implements Initializable {
      * - регистра
      * - пунктуации
      * - лишних пробелов
-     * - опечаток
+     * - опечаток (с учетом длины слова)
      * - раскладки клавиатуры
      */
     private boolean checkAnswerSmart(String userAnswer, String correctAnswer) {
@@ -198,14 +290,26 @@ public class TypingController implements Initializable {
             return true;
         }
         
-        // 3. Проверка на опечатки (расстояние Левенштейна)
-        if (levenshteinDistance(normalizedUser, normalizedCorrect) <= 2) {
+        if (checkNumericAnswer(normalizedUser, normalizedCorrect)) {
+            return true;
+        }
+        
+        // 3. Проверка на опечатки с учетом длины слова
+        int distance = levenshteinDistance(normalizedUser, normalizedCorrect);
+        int maxAllowed = getMaxAllowedDistance(normalizedCorrect.length());
+        
+        if (distance <= maxAllowed && distance > 0) {
+            // Логируем опечатку для отладки
+            System.out.println("⚠️ Опечатка в слове '" + correctAnswer + 
+                               "': расстояние " + distance + 
+                               " (допустимо " + maxAllowed + ")");
             return true;
         }
         
         // 4. Проверка на раскладку (если русский набрали английскими буквами)
         String transliterated = transliterateFromEnglish(normalizedUser);
         if (transliterated.equals(normalizedCorrect)) {
+            System.out.println("⚠️ Исправлена раскладка: '" + userAnswer + "' → '" + transliterated + "'");
             return true;
         }
         
@@ -219,6 +323,20 @@ public class TypingController implements Initializable {
         normalized = Normalizer.normalize(normalized, Normalizer.Form.NFD);
         normalized = normalized.replaceAll("\\p{M}", ""); // Убираем диакритические знаки
         return normalized.trim();
+    }
+    
+    private boolean isNumericAnswer(String answer) {
+        return answer.matches("\\d+");
+    }
+
+    /**
+     * Проверка числовых ответов - строгое равенство
+     */
+    private boolean checkNumericAnswer(String userAnswer, String correctAnswer) {
+        if (isNumericAnswer(correctAnswer)) {
+            return userAnswer.equals(correctAnswer);
+        }
+        return false;
     }
     
     private int levenshteinDistance(String a, String b) {
@@ -239,6 +357,20 @@ public class TypingController implements Initializable {
             }
         }
         return dp[a.length()][b.length()];
+    }
+    
+    private int getMaxAllowedDistance(int wordLength) {
+        if (wordLength <= 3) {
+            return 0;  // Слова до 3 букв - без ошибок
+        } else if (wordLength <= 5) {
+            return 1;  // Слова 4-5 букв - максимум 1 ошибка
+        } else if (wordLength <= 8) {
+            return 1;  // Слова 6-8 букв - максимум 1 ошибка
+        } else if (wordLength <= 12) {
+            return 2;  // Слова 9-12 букв - максимум 2 ошибки
+        } else {
+            return 2;  // Длинные слова - максимум 2 ошибки
+        }
     }
     
     private String transliterateFromEnglish(String text) {

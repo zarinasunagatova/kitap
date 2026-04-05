@@ -1,6 +1,8 @@
 package com.tatar.learn.controllers;
 
+import com.tatar.learn.services.DatabaseService;
 import com.tatar.learn.services.TTSService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -21,20 +23,140 @@ public class MainController implements Initializable {
     @FXML private Button cultureButton;
     @FXML private Label statusLabel;
     @FXML private Label voiceStatusLabel;
+    @FXML private Label dbStatusLabel;  // ← ДОБАВИТЬ В FXML (или использовать statusLabel)
     
     private static final int WINDOW_WIDTH = 1000;
     private static final int WINDOW_HEIGHT = 700;
+    
+    // Флаг для отслеживания состояния БД
+    private boolean databaseAvailable = false;
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         statusLabel.setText("Рәхим итегез! / Добро пожаловать!");
         
         updateVoiceStatus();
+        checkDatabaseStatus();  // ← ДОБАВИТЬ ПРОВЕРКУ БД
         
         dictionaryButton.setOnAction(e -> openDictionary());
         learnButton.setOnAction(e -> openLearn());
         testButton.setOnAction(e -> openTest());
         cultureButton.setOnAction(e -> openCultureSection());
+    }
+    
+    /**
+     * Проверяет состояние базы данных при запуске
+     */
+    private void checkDatabaseStatus() {
+        try {
+            DatabaseService dbService = DatabaseService.getInstance();
+            databaseAvailable = dbService.isHealthy();
+            
+            if (databaseAvailable) {
+                System.out.println("✅ Database is healthy");
+                if (dbStatusLabel != null) {
+                    dbStatusLabel.setText("✅ База данных: OK");
+                    dbStatusLabel.setStyle("-fx-text-fill: #2c7a4c;");
+                }
+            } else {
+                databaseAvailable = false;
+                System.err.println("⚠️ Database is not healthy");
+                if (dbStatusLabel != null) {
+                    dbStatusLabel.setText("⚠️ База данных: проблемы");
+                    dbStatusLabel.setStyle("-fx-text-fill: #b4654d;");
+                }
+                showDatabaseWarning();
+            }
+        } catch (Exception e) {
+            databaseAvailable = false;
+            System.err.println("❌ Database initialization failed: " + e.getMessage());
+            if (dbStatusLabel != null) {
+                dbStatusLabel.setText("❌ База данных: ошибка");
+                dbStatusLabel.setStyle("-fx-text-fill: #d45d79;");
+            }
+            showDatabaseErrorDialog(e.getMessage());
+        }
+    }
+    
+    /**
+     * Показывает предупреждение, если БД работает с проблемами
+     */
+    private void showDatabaseWarning() {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Внимание");
+        alert.setHeaderText("База данных работает с проблемами");
+        alert.setContentText(
+            "Некоторые функции могут работать некорректно.\n\n" +
+            "Рекомендуется перезапустить приложение.\n\n" +
+            "Если проблема повторяется, проверьте:\n" +
+            "• Права на запись в папку пользователя\n" +
+            "• Наличие свободного места на диске"
+        );
+        alert.showAndWait();
+    }
+    
+    /**
+     * Показывает критическую ошибку БД
+     */
+    private void showDatabaseErrorDialog(String errorMessage) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Критическая ошибка");
+        alert.setHeaderText("Не удалось подключиться к базе данных");
+        alert.setContentText(
+            "Приложение не может работать без базы данных.\n\n" +
+            "Ошибка: " + errorMessage + "\n\n" +
+            "Попробуйте:\n" +
+            "1. Перезапустить приложение\n" +
+            "2. Проверить права на запись в папку пользователя\n" +
+            "3. Удалить файл kitap.db и перезапустить приложение"
+        );
+        
+        ButtonType retryButton = new ButtonType("Повторить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType exitButton = new ButtonType("Выйти", ButtonBar.ButtonData.CANCEL_CLOSE);
+        
+        alert.getButtonTypes().setAll(retryButton, exitButton);
+        
+        alert.showAndWait().ifPresent(response -> {
+            if (response == retryButton) {
+                checkDatabaseStatus();  // Повторяем проверку
+            } else {
+                Platform.exit();  // Выходим из приложения
+            }
+        });
+    }
+    
+    /**
+     * Проверяет, доступна ли БД перед открытием окна
+     */
+    private boolean ensureDatabaseAvailable(String featureName) {
+        if (!databaseAvailable) {
+            showErrorAlert(
+                "База данных недоступна", 
+                "Невозможно открыть " + featureName + ".\n\n" +
+                "Пожалуйста, перезапустите приложение.\n" +
+                "Если проблема повторяется, проверьте установку."
+            );
+            return false;
+        }
+        
+        // Дополнительная проверка на лету
+        try {
+            DatabaseService dbService = DatabaseService.getInstance();
+            if (!dbService.isHealthy()) {
+                databaseAvailable = false;
+                showErrorAlert(
+                    "База данных недоступна",
+                    "Соединение с базой данных потеряно.\nПожалуйста, перезапустите приложение."
+                );
+                return false;
+            }
+        } catch (Exception e) {
+            databaseAvailable = false;
+            showErrorAlert("Ошибка базы данных", e.getMessage());
+            return false;
+        }
+        
+        return true;
     }
     
     private void updateVoiceStatus() {
@@ -108,14 +230,19 @@ public class MainController implements Initializable {
     // ============================================================
     
     private void openDictionary() {
+        // ← ДОБАВИТЬ ПРОВЕРКУ БД
+        if (!ensureDatabaseAvailable("словарь")) {
+            return;
+        }
+        
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/DictionaryView.fxml"));
             Parent root = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Сүзлек / Словарь");
             
-            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT); // Увеличенный размер
-            loadCss(scene); // ЗАГРУЖАЕМ CSS ДЛЯ ЭТОГО ОКНА
+            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+            loadCss(scene);
             
             stage.setScene(scene);
             stage.show();
@@ -123,18 +250,24 @@ public class MainController implements Initializable {
         } catch (Exception e) {
             e.printStackTrace();
             statusLabel.setText("❌ Ошибка открытия словаря");
+            showErrorAlert("Ошибка", "Не удалось открыть словарь: " + e.getMessage());
         }
     }
 
     private void openLearn() {
+        // ← ДОБАВИТЬ ПРОВЕРКУ БД
+        if (!ensureDatabaseAvailable("режим обучения")) {
+            return;
+        }
+        
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LearnView.fxml"));
             Parent root = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Өйрән / Изучение");
             
-            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT); // Увеличенный размер
-            loadCss(scene); // ЗАГРУЖАЕМ CSS ДЛЯ ЭТОГО ОКНА
+            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+            loadCss(scene);
             
             stage.setScene(scene);
             stage.show();
@@ -142,10 +275,13 @@ public class MainController implements Initializable {
         } catch (Exception e) {
             e.printStackTrace();
             statusLabel.setText("❌ Ошибка открытия обучения");
+            showErrorAlert("Ошибка", "Не удалось открыть обучение: " + e.getMessage());
         }
     }
     
     private void openTest() {
+        // Тесты НЕ зависят от DatabaseService (используют GrammarService)
+        // Поэтому проверку БД можно НЕ делать
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/TestView.fxml"));
             Parent root = loader.load();
@@ -161,10 +297,12 @@ public class MainController implements Initializable {
         } catch (Exception e) {
             e.printStackTrace();
             statusLabel.setText("❌ Ошибка открытия тестов");
+            showErrorAlert("Ошибка", "Не удалось открыть тесты: " + e.getMessage());
         }
     }
     
     private void openCultureSection() {
+        // Культура НЕ зависит от DatabaseService
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/CultureView.fxml"));
             Parent root = loader.load();
@@ -174,28 +312,13 @@ public class MainController implements Initializable {
             cultureStage.setScene(new Scene(root, 1000, 700));
             cultureStage.getScene().getStylesheets().add(getClass().getResource("/styles/main.css").toExternalForm());
             
-            // Делаем модальным (опционально - блокирует главное окно пока открыто)
             cultureStage.initModality(javafx.stage.Modality.NONE);
-            
-            // Показываем окно
             cultureStage.show();
             
         } catch (Exception e) {
             e.printStackTrace();
             showErrorAlert("Ошибка", "Не удалось открыть раздел культуры: " + e.getMessage());
         }
-    }
-    
-    private void showNotImplementedDialog(String feature) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("В разработке");
-        alert.setHeaderText(feature);
-        alert.setContentText("Этот раздел находится в разработке!\n\n" +
-                           "Скоро здесь появится:\n" +
-                           "• Тесты на знание слов\n" +
-                           "• Упражнения на перевод\n" +
-                           "• Проверка произношения");
-        alert.showAndWait();
     }
     
     private void showErrorAlert(String header, String content) {

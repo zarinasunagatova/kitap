@@ -2,6 +2,8 @@ package com.tatar.learn.services;
 
 import com.tatar.learn.models.Word;
 import com.tatar.learn.utils.JsonUtils;
+import com.tatar.learn.utils.WordsExport;
+
 import java.sql.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -12,31 +14,77 @@ import java.util.logging.*;
 
 public class DatabaseService {
     private static final Logger LOGGER = Logger.getLogger(DatabaseService.class.getName());
-    private static DatabaseService instance;
+    private static volatile DatabaseService instance;
+    private static volatile boolean initFailed = false;
+    private static String initErrorMessage = null;
     
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private Connection connection;
     private final Object connectionLock = new Object();
     
-    private DatabaseService() {
-        try {
-            connect();
-            createTables();
-            LOGGER.info("Database service initialized");
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to initialize database", e);
-        }
+    private DatabaseService() throws SQLException {
+        connect();
+        createTables();
+        LOGGER.info("Database service initialized");
     }
     
-    public static DatabaseService getInstance() {
+    public static DatabaseService getInstance() throws SQLException {
+        if (initFailed) {
+            throw new SQLException("Database initialization failed previously: " + initErrorMessage);
+        }
+        
         if (instance == null) {
             synchronized (DatabaseService.class) {
                 if (instance == null) {
-                    instance = new DatabaseService();
+                    try {
+                        instance = new DatabaseService();
+                    } catch (SQLException e) {
+                        initFailed = true;
+                        initErrorMessage = e.getMessage();
+                        LOGGER.log(Level.SEVERE, "Failed to initialize DatabaseService", e);
+                        throw e; // Пробрасываем дальше
+                    }
                 }
             }
         }
         return instance;
+    }
+
+    public static boolean isInitialized() {
+        return instance != null && !initFailed;
+    }
+
+    public static String getInitErrorMessage() {
+        return initErrorMessage;
+    }
+    
+    public boolean isHealthy() {
+        lock.readLock().lock();
+        try {
+            Connection conn = getValidConnection();
+            if (conn == null || conn.isClosed()) {
+                return false;
+            }
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT 1")) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            LOGGER.warning("Health check failed: " + e.getMessage());
+            return false;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    public static synchronized void reset() {
+        if (instance != null) {
+            instance.close();
+            instance = null;
+        }
+        initFailed = false;
+        initErrorMessage = null;
+        LOGGER.info("DatabaseService reset");
     }
     
     private void connect() throws SQLException {
@@ -76,12 +124,10 @@ public class DatabaseService {
                 tatar TEXT NOT NULL,
                 russian TEXT NOT NULL,
                 category TEXT DEFAULT 'Общее',
-                examples TEXT,  -- НОВОЕ ПОЛЕ: храним JSON строку с примерами
+                examples TEXT,
                 created_at INTEGER DEFAULT (strftime('%s', 'now'))
             )
         """;
-        
-
         
         String progressTable = """
             CREATE TABLE IF NOT EXISTS user_progress (
@@ -128,7 +174,7 @@ public class DatabaseService {
         
         // Пробуем разные места для файла
         String[] possiblePaths = {
-            "words.json",  // корень проекта
+            "words.json",
             "./words.json",
             "src/main/resources/data/words/words.json",
             "data/words/words.json",
@@ -184,11 +230,9 @@ public class DatabaseService {
         try {
             com.google.gson.JsonObject jsonObject = JsonUtils.fromJson(jsonContent, com.google.gson.JsonObject.class);
             
-            // Сохраняем категории (можно использовать позже)
             com.google.gson.JsonArray categoriesArray = jsonObject.getAsJsonArray("categories");
             if (categoriesArray != null && categoriesArray.size() > 0) {
                 System.out.println("Found " + categoriesArray.size() + " categories in JSON");
-                // Можно сохранить категории в отдельную таблицу или использовать для фильтрации
             }
             
             com.google.gson.JsonArray wordsArray = jsonObject.getAsJsonArray("words");
@@ -205,9 +249,12 @@ public class DatabaseService {
             conn.setAutoCommit(false);
             
             try {
-                // Обновленный SQL с полем examples
                 String sql = "INSERT INTO words (tatar, russian, category, examples) VALUES (?, ?, ?, ?)";
-                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                String progressSql = "INSERT INTO user_progress (word_id) VALUES (?)";
+                
+                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                     PreparedStatement progressPstmt = conn.prepareStatement(progressSql)) {
+                    
                     int added = 0;
                     for (int i = 0; i < wordsArray.size(); i++) {
                         com.google.gson.JsonObject wordObj = wordsArray.get(i).getAsJsonObject();
@@ -216,7 +263,6 @@ public class DatabaseService {
                         String russian = wordObj.get("russian").getAsString();
                         String category = wordObj.has("category") ? wordObj.get("category").getAsString() : "Общее";
                         
-                        // Сохраняем примеры как JSON строку
                         String examplesJson = null;
                         if (wordObj.has("examples") && wordObj.get("examples").isJsonArray()) {
                             examplesJson = wordObj.get("examples").toString();
@@ -232,7 +278,9 @@ public class DatabaseService {
                         
                         try (ResultSet rs = pstmt.getGeneratedKeys()) {
                             if (rs.next()) {
-                                initProgressForWord(conn, rs.getInt(1));
+                                int wordId = rs.getInt(1);
+                                progressPstmt.setInt(1, wordId);
+                                progressPstmt.executeUpdate();
                                 added++;
                             }
                         }
@@ -253,6 +301,43 @@ public class DatabaseService {
             addSampleWords();
         }
     }
+    
+    /**
+     * Экспортирует все слова в JSON файл с сохранением примеров
+     */
+    public void exportAllWords(String filePath) throws IOException {
+        lock.readLock().lock();
+        try {
+            List<Word> words = getAllWords();
+            
+            // Создаем объект для экспорта
+            WordsExport export = new WordsExport();
+            export.setWords(words);
+            export.setExportDate(LocalDate.now());
+            export.setTotalWords(words.size());
+            
+            // Собираем уникальные категории
+            Set<String> categorySet = new HashSet<>();
+            for (Word word : words) {
+                if (word.getCategory() != null && !word.getCategory().isEmpty()) {
+                    categorySet.add(word.getCategory());
+                }
+            }
+            export.setCategories(new ArrayList<>(categorySet));
+            
+            // Сохраняем в JSON
+            JsonUtils.saveToFile(export, filePath);
+            
+            LOGGER.info("Exported " + words.size() + " words to " + filePath);
+            
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to export words", e);
+            throw new IOException("Export failed: " + e.getMessage(), e);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
     
     private Word mapRowToWord(ResultSet rs) throws SQLException {
         Word word = new Word();
@@ -321,12 +406,13 @@ public class DatabaseService {
                         tatar TEXT NOT NULL,
                         russian TEXT NOT NULL,
                         category TEXT DEFAULT 'Общее',
+                        examples TEXT,
                         created_at INTEGER DEFAULT (strftime('%s', 'now'))
                     )
                 """);
                 stmt.execute("""
-                    INSERT INTO words_new (id, tatar, russian, category, created_at)
-                    SELECT id, tatar, russian, category, created_at FROM words
+                    INSERT INTO words_new (id, tatar, russian, category, examples, created_at)
+                    SELECT id, tatar, russian, category, examples, created_at FROM words
                 """);
                 stmt.execute("DROP TABLE words");
                 stmt.execute("ALTER TABLE words_new RENAME TO words");
@@ -355,21 +441,24 @@ public class DatabaseService {
             
             conn.setAutoCommit(false);
             try {
-                String sql = "INSERT INTO words (tatar, russian, category) VALUES (?, ?, ?)";
-                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                String sql = "INSERT INTO words (tatar, russian, category, examples) VALUES (?, ?, ?, ?)";
+                String progressSql = "INSERT INTO user_progress (word_id) VALUES (?)";
+                
+                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                     PreparedStatement progressPstmt = conn.prepareStatement(progressSql)) {
+                    
                     for (String[] sample : samples) {
                         pstmt.setString(1, sample[0]);
                         pstmt.setString(2, sample[1]);
                         pstmt.setString(3, sample[2]);
+                        pstmt.setString(4, null);
                         pstmt.executeUpdate();
                         
                         try (ResultSet rs = pstmt.getGeneratedKeys()) {
                             if (rs.next()) {
-                                try (PreparedStatement pstmt2 = conn.prepareStatement(
-                                        "INSERT INTO user_progress (word_id) VALUES (?)")) {
-                                    pstmt2.setInt(1, rs.getInt(1));
-                                    pstmt2.executeUpdate();
-                                }
+                                int wordId = rs.getInt(1);
+                                progressPstmt.setInt(1, wordId);
+                                progressPstmt.executeUpdate();
                             }
                         }
                     }
@@ -391,28 +480,61 @@ public class DatabaseService {
     
     // ========== ПУБЛИЧНЫЕ МЕТОДЫ ==========
     
+    /**
+     * Добавляет слово и инициализирует прогресс в одной транзакции
+     */
     public void addWord(Word word) {
         lock.writeLock().lock();
         try {
             Connection conn = getValidConnection();
-            String sql = "INSERT INTO words (tatar, russian, category) VALUES (?, ?, ?)";
+            conn.setAutoCommit(false);
             
-            try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                pstmt.setString(1, word.getTatar());
-                pstmt.setString(2, word.getRussian());
-                pstmt.setString(3, word.getCategory());
-                pstmt.executeUpdate();
+            try {
+                String sql = "INSERT INTO words (tatar, russian, category, examples) VALUES (?, ?, ?, ?)";
                 
-                try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        word.setId(rs.getInt(1));
-                        try (PreparedStatement pstmt2 = conn.prepareStatement(
-                                "INSERT INTO user_progress (word_id) VALUES (?)")) {
-                            pstmt2.setInt(1, word.getId());
-                            pstmt2.executeUpdate();
+                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                    pstmt.setString(1, word.getTatar());
+                    pstmt.setString(2, word.getRussian());
+                    pstmt.setString(3, word.getCategory());
+                    
+                    // Сохраняем examples как JSON
+                    String examplesJson = null;
+                    if (word.getExamples() != null && !word.getExamples().isEmpty()) {
+                        com.google.gson.JsonArray jsonArray = new com.google.gson.JsonArray();
+                        for (String example : word.getExamples()) {
+                            jsonArray.add(example);
+                        }
+                        examplesJson = jsonArray.toString();
+                    }
+                    pstmt.setString(4, examplesJson);
+                    pstmt.executeUpdate();
+                    
+                    try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            int wordId = rs.getInt(1);
+                            word.setId(wordId);
+                            
+                            // Инициализируем прогресс в той же транзакции
+                            try (PreparedStatement progressPstmt = conn.prepareStatement(
+                                    "INSERT INTO user_progress (word_id) VALUES (?)")) {
+                                progressPstmt.setInt(1, wordId);
+                                progressPstmt.executeUpdate();
+                            }
+                        } else {
+                            throw new SQLException("Failed to get generated key for word");
                         }
                     }
                 }
+                
+                conn.commit();
+                LOGGER.info("Word added successfully with ID: " + word.getId());
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                LOGGER.log(Level.SEVERE, "Failed to add word, transaction rolled back", e);
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to add word", e);
@@ -440,7 +562,7 @@ public class DatabaseService {
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(sql)) {
                 while (rs.next()) {
-                    words.add(mapRowToWord(rs));  // ← ИСПОЛЬЗУЕМ mapRowToWord
+                    words.add(mapRowToWord(rs));
                 }
             }
         } catch (SQLException e) {
@@ -451,32 +573,64 @@ public class DatabaseService {
         return words;
     }
     
+    /**
+     * Обновляет слово и прогресс в одной транзакции
+     */
     public void updateWord(Word word) {
         lock.writeLock().lock();
         try {
             Connection conn = getValidConnection();
-            String updateWord = "UPDATE words SET tatar = ?, russian = ?, category = ? WHERE id = ?";
-            String updateProgress = """
-                UPDATE user_progress SET 
-                    times_correct = ?, times_wrong = ?, last_reviewed = ?, ease_factor = ?
-                WHERE word_id = ?
-            """;
+            conn.setAutoCommit(false);
             
-            try (PreparedStatement pstmt1 = conn.prepareStatement(updateWord);
-                 PreparedStatement pstmt2 = conn.prepareStatement(updateProgress)) {
+            try {
+                String updateWord = "UPDATE words SET tatar = ?, russian = ?, category = ?, examples = ? WHERE id = ?";
+                String updateProgress = """
+                    UPDATE user_progress SET 
+                        times_correct = ?, times_wrong = ?, last_reviewed = ?, ease_factor = ?
+                    WHERE word_id = ?
+                """;
                 
-                pstmt1.setString(1, word.getTatar());
-                pstmt1.setString(2, word.getRussian());
-                pstmt1.setString(3, word.getCategory());
-                pstmt1.setInt(4, word.getId());
-                pstmt1.executeUpdate();
+                try (PreparedStatement pstmt1 = conn.prepareStatement(updateWord);
+                     PreparedStatement pstmt2 = conn.prepareStatement(updateProgress)) {
+                    
+                    pstmt1.setString(1, word.getTatar());
+                    pstmt1.setString(2, word.getRussian());
+                    pstmt1.setString(3, word.getCategory());
+                    
+                    // Сохраняем examples как JSON
+                    String examplesJson = null;
+                    if (word.getExamples() != null && !word.getExamples().isEmpty()) {
+                        com.google.gson.JsonArray jsonArray = new com.google.gson.JsonArray();
+                        for (String example : word.getExamples()) {
+                            jsonArray.add(example);
+                        }
+                        examplesJson = jsonArray.toString();
+                    }
+                    pstmt1.setString(4, examplesJson);
+                    pstmt1.setInt(5, word.getId());
+                    int wordsUpdated = pstmt1.executeUpdate();
+                    
+                    if (wordsUpdated == 0) {
+                        throw new SQLException("Word with ID " + word.getId() + " not found");
+                    }
+                    
+                    pstmt2.setInt(1, word.getTimesCorrect());
+                    pstmt2.setInt(2, word.getTimesWrong());
+                    pstmt2.setString(3, word.getLastReviewed() != null ? word.getLastReviewed().toString() : null);
+                    pstmt2.setDouble(4, word.getEaseFactor());
+                    pstmt2.setInt(5, word.getId());
+                    pstmt2.executeUpdate();
+                }
                 
-                pstmt2.setInt(1, word.getTimesCorrect());
-                pstmt2.setInt(2, word.getTimesWrong());
-                pstmt2.setString(3, word.getLastReviewed() != null ? word.getLastReviewed().toString() : null);
-                pstmt2.setDouble(4, word.getEaseFactor());
-                pstmt2.setInt(5, word.getId());
-                pstmt2.executeUpdate();
+                conn.commit();
+                LOGGER.info("Word updated successfully with ID: " + word.getId());
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                LOGGER.log(Level.SEVERE, "Failed to update word, transaction rolled back", e);
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to update word", e);
@@ -489,6 +643,7 @@ public class DatabaseService {
         lock.writeLock().lock();
         try {
             Connection conn = getValidConnection();
+            // Из-за FOREIGN KEY ON DELETE CASCADE, прогресс удалится автоматически
             try (PreparedStatement pstmt = conn.prepareStatement("DELETE FROM words WHERE id = ?")) {
                 pstmt.setInt(1, id);
                 pstmt.executeUpdate();
@@ -500,40 +655,56 @@ public class DatabaseService {
         }
     }
     
+    /**
+     * Сохраняет попытку ответа в одной транзакции
+     */
     public void saveWordAttempt(int wordId, boolean isCorrect) {
         lock.writeLock().lock();
         try {
             Connection conn = getValidConnection();
-            LocalDate today = LocalDate.now();
+            conn.setAutoCommit(false);
             
-            String sql = """
-                INSERT INTO user_progress (word_id, times_correct, times_wrong, last_reviewed, ease_factor)
-                VALUES (?, ?, ?, ?, 2.5)
-                ON CONFLICT(word_id) DO UPDATE SET
-                    times_correct = times_correct + ?,
-                    times_wrong = times_wrong + ?,
-                    last_reviewed = ?
-            """;
-            
-            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                if (isCorrect) {
-                    pstmt.setInt(1, wordId);
-                    pstmt.setInt(2, 1);
-                    pstmt.setInt(3, 0);
-                    pstmt.setString(4, today.toString());
-                    pstmt.setInt(5, 1);
-                    pstmt.setInt(6, 0);
-                    pstmt.setString(7, today.toString());
-                } else {
-                    pstmt.setInt(1, wordId);
-                    pstmt.setInt(2, 0);
-                    pstmt.setInt(3, 1);
-                    pstmt.setString(4, today.toString());
-                    pstmt.setInt(5, 0);
-                    pstmt.setInt(6, 1);
-                    pstmt.setString(7, today.toString());
+            try {
+                LocalDate today = LocalDate.now();
+                
+                String sql = """
+                    INSERT INTO user_progress (word_id, times_correct, times_wrong, last_reviewed, ease_factor)
+                    VALUES (?, ?, ?, ?, 2.5)
+                    ON CONFLICT(word_id) DO UPDATE SET
+                        times_correct = times_correct + ?,
+                        times_wrong = times_wrong + ?,
+                        last_reviewed = ?
+                """;
+                
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    if (isCorrect) {
+                        pstmt.setInt(1, wordId);
+                        pstmt.setInt(2, 1);
+                        pstmt.setInt(3, 0);
+                        pstmt.setString(4, today.toString());
+                        pstmt.setInt(5, 1);
+                        pstmt.setInt(6, 0);
+                        pstmt.setString(7, today.toString());
+                    } else {
+                        pstmt.setInt(1, wordId);
+                        pstmt.setInt(2, 0);
+                        pstmt.setInt(3, 1);
+                        pstmt.setString(4, today.toString());
+                        pstmt.setInt(5, 0);
+                        pstmt.setInt(6, 1);
+                        pstmt.setString(7, today.toString());
+                    }
+                    pstmt.executeUpdate();
                 }
-                pstmt.executeUpdate();
+                
+                conn.commit();
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                LOGGER.log(Level.SEVERE, "Failed to save attempt, transaction rolled back", e);
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to save attempt", e);

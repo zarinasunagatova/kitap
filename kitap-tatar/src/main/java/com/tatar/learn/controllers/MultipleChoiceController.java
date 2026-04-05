@@ -35,7 +35,11 @@ public class MultipleChoiceController implements Initializable {
     private GrammarExercise currentExercise;
     private Random random = new Random();
     
+    // Флаг режима и константа типа
     private boolean isMatchingMode = false;
+    private static final String MULTIPLE_CHOICE_TYPE = "multiple_choice";
+    private static final String MATCHING_TYPE = "matching";
+    
     private List<MatchingItem> matchingItems;
     private Map<String, ComboBox<String>> matchingSelections;
     
@@ -57,10 +61,21 @@ public class MultipleChoiceController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         try {
             grammarService = GrammarService.getInstance();
-            currentExercises = new ArrayList<>(grammarService.getAllExercises());
             
+            // Получаем валидные упражнения нужных типов
+            List<GrammarExercise> validMultipleChoice = grammarService.getExercisesByType(MULTIPLE_CHOICE_TYPE);
+            List<GrammarExercise> validMatching = grammarService.getExercisesByType(MATCHING_TYPE);
+            
+            // Фильтруем только валидные (хотя сервис уже должен отфильтровать)
+            currentExercises = new ArrayList<>();
+            currentExercises.addAll(validMultipleChoice);
+            currentExercises.addAll(validMatching);
+            
+            // Проверяем, есть ли хоть какие-то упражнения
             if (currentExercises.isEmpty()) {
-                showAlert("Нет упражнений", "Сначала добавьте грамматические упражнения");
+                showAlert("Нет доступных упражнений", 
+                    "Нет корректных упражнений для отображения.\n" +
+                    "Проверьте файл exercises.json на наличие ошибок.");
                 return;
             }
             
@@ -78,10 +93,13 @@ public class MultipleChoiceController implements Initializable {
     private void initializeUI() {
         if (categoryCombo != null) {
             categoryCombo.getItems().add("Все категории");
-            Set<String> categories = grammarService.getCategories();
+            
+            // ИСПРАВЛЕНО: используем ТОЛЬКО категории упражнений
+            Set<String> categories = grammarService.getExerciseCategories();
             if (categories != null && !categories.isEmpty()) {
                 categoryCombo.getItems().addAll(categories);
             }
+            
             categoryCombo.getSelectionModel().selectFirst();
             categoryCombo.setOnAction(e -> filterByCategory());
         }
@@ -98,28 +116,118 @@ public class MultipleChoiceController implements Initializable {
         try {
             String selectedCategory = categoryCombo.getValue();
             
-            if (selectedCategory == null || selectedCategory.equals("Все категории")) {
-                currentExercises = new ArrayList<>(grammarService.getAllExercises());
-            } else {
-                currentExercises = grammarService.getExercisesByCategory(selectedCategory);
+            // Сохраняем предыдущую категорию на случай отката
+            String previousCategory = null;
+            if (!currentExercises.isEmpty() && currentExercises.get(0) != null) {
+                previousCategory = currentExercises.get(0).getCategory();
             }
             
-            if (currentExercises.isEmpty()) {
-                showAlert("Нет упражнений", "В этой категории нет упражнений");
+            // Фильтруем оба типа упражнений по категории
+            List<GrammarExercise> filteredMultipleChoice = 
+                grammarService.getExercisesByTypeAndCategory(MULTIPLE_CHOICE_TYPE, selectedCategory);
+            List<GrammarExercise> filteredMatching = 
+                grammarService.getExercisesByTypeAndCategory(MATCHING_TYPE, selectedCategory);
+            
+            List<GrammarExercise> newExercises = new ArrayList<>();
+            newExercises.addAll(filteredMultipleChoice);
+            newExercises.addAll(filteredMatching);
+            
+            if (newExercises.isEmpty()) {
+                // Показываем пустое состояние
+                showEmptyCategoryState(selectedCategory);
+                
+          
+                categoryCombo.setValue(previousCategory != null ? previousCategory : "Все категории");
+                
                 return;
             }
             
+            // Обновляем список упражнений
+            currentExercises = newExercises;
+            
+            // Сбрасываем статистику
             answeredExercises.clear();
             totalAttempts = 0;
             correctAttempts = 0;
             
+            // Загружаем новый вопрос
             loadNewQuestion();
             updateStats();
             updateProgress();
             
+            // Скрываем сообщение о пустой категории, если оно было
+            clearEmptyStateMessage();
+            
         } catch (Exception e) {
             System.err.println("Error filtering by category: " + e.getMessage());
+            showErrorState("Ошибка фильтрации: " + e.getMessage());
         }
+    }
+    
+    private void showEmptyCategoryState(String category) {
+        // Очищаем текущий вопрос и варианты
+        if (questionLabel != null) {
+            questionLabel.setText("📭 В категории \"" + category + "\" нет упражнений");
+            questionLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 18px;");
+        }
+        
+        // Очищаем кнопки
+        if (option1 != null) option1.setText("");
+        if (option2 != null) option2.setText("");
+        if (option3 != null) option3.setText("");
+        if (option4 != null) option4.setText("");
+        
+        // Отключаем кнопки
+        setButtonsDisable(true);
+        
+        // Скрываем matching контейнер, если он виден
+        if (matchingContainer != null) {
+            matchingContainer.setVisible(false);
+            matchingContainer.setManaged(false);
+        }
+        if (multipleChoiceGrid != null) {
+            multipleChoiceGrid.setVisible(true);
+            multipleChoiceGrid.setManaged(true);
+        }
+        
+        // Очищаем фидбек
+        if (feedbackLabel != null) {
+            feedbackLabel.setText("Выберите другую категорию или добавьте упражнения");
+            feedbackLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 14px; -fx-font-style: italic;");
+        }
+        
+        // Отключаем кнопку "Следующее"
+        if (nextButton != null) nextButton.setDisable(true);
+        
+        // Обновляем прогресс (0 из 0)
+        if (progressLabel != null) {
+            progressLabel.setText("📈 Прогресс: 0 из 0 упражнений");
+        }
+        
+        // Очищаем текущее упражнение
+        currentExercise = null;
+        isMatchingMode = false;
+    }
+
+
+    private void clearEmptyStateMessage() {
+        if (questionLabel != null) {
+            questionLabel.setStyle("-fx-text-fill: #4a2c5a; -fx-font-size: 20px;");
+        }
+        if (feedbackLabel != null) {
+            feedbackLabel.setStyle("");
+            feedbackLabel.setText("");
+        }
+    }
+
+    private void showErrorState(String errorMessage) {
+        if (questionLabel != null) {
+            questionLabel.setText("❌ " + errorMessage);
+            questionLabel.setStyle("-fx-text-fill: #d45d79; -fx-font-size: 16px;");
+        }
+        setButtonsDisable(true);
+        if (nextButton != null) nextButton.setDisable(true);
+        if (feedbackLabel != null) feedbackLabel.setText("Попробуйте перезагрузить страницу");
     }
     
     private void loadNewQuestion() {
@@ -137,7 +245,7 @@ public class MultipleChoiceController implements Initializable {
             
             currentExercise = unanswered.get(random.nextInt(unanswered.size()));
             
-            if (currentExercise.getType() != null && currentExercise.getType().equals("matching")) {
+            if (MATCHING_TYPE.equals(currentExercise.getType())) {
                 loadMatchingExercise();
             } else {
                 loadMultipleChoiceExercise();
@@ -212,6 +320,7 @@ public class MultipleChoiceController implements Initializable {
     private void parseMatchingPairs() {
         matchingItems = new ArrayList<>();
         
+        // Для matching упражнений пары хранятся в специальном формате
         String pairsStr = currentExercise.getExplanation();
         System.out.println("Parsing matching pairs: " + pairsStr);
         
@@ -227,6 +336,9 @@ public class MultipleChoiceController implements Initializable {
             }
         }
         
+        // Если не удалось распарсить, используем данные из JSON напрямую
+        // В реальном коде нужно получать pairs из специального поля
+        // Пока используем fallback для местоимений
         if (matchingItems.isEmpty()) {
             matchingItems.add(new MatchingItem("мин", "я"));
             matchingItems.add(new MatchingItem("син", "ты"));
@@ -242,38 +354,31 @@ public class MultipleChoiceController implements Initializable {
     private void buildMatchingGrid() {
         if (matchingContainer == null || matchingItems == null) return;
         
-        // Очищаем контейнер
         matchingContainer.getChildren().clear();
         matchingSelections = new HashMap<>();
         
-        // Заголовок
         Label headerLabel = new Label("Соедините татарские слова с правильными переводами:");
         headerLabel.getStyleClass().add("matching-header");
         
-        // Контейнер для строк
         VBox rowsContainer = new VBox(8);
         rowsContainer.getStyleClass().add("matching-grid");
         rowsContainer.setPadding(new Insets(10));
         
-        // Собираем все переводы
         List<String> allTranslations = new ArrayList<>();
         for (MatchingItem item : matchingItems) {
             allTranslations.add(item.correctTranslation);
         }
         Collections.shuffle(allTranslations);
         
-        // Создаем строки
         for (MatchingItem item : matchingItems) {
             HBox row = new HBox(15);
             row.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
             row.setPadding(new Insets(5, 10, 5, 10));
             
-            // Татарское слово
             Label tatarLabel = new Label(item.tatarWord);
             tatarLabel.setMinWidth(100);
             tatarLabel.getStyleClass().add("matching-tatar-cell");
             
-            // Выпадающий список
             ComboBox<String> comboBox = new ComboBox<>();
             comboBox.getItems().addAll(allTranslations);
             comboBox.setPromptText("Выберите перевод");
@@ -287,10 +392,8 @@ public class MultipleChoiceController implements Initializable {
             rowsContainer.getChildren().add(row);
         }
         
-        // Добавляем элементы в контейнер
         matchingContainer.getChildren().addAll(headerLabel, rowsContainer);
         
-        // Кнопка проверки
         if (checkMatchingButton != null) {
             checkMatchingButton.setOnAction(e -> checkMatchingAnswer());
             if (!matchingContainer.getChildren().contains(checkMatchingButton)) {
@@ -304,7 +407,6 @@ public class MultipleChoiceController implements Initializable {
         }
     }
     
-   
     private void checkMatchingAnswer() {
         if (matchingItems == null || matchingSelections == null) return;
         
@@ -312,7 +414,6 @@ public class MultipleChoiceController implements Initializable {
         int totalCount = matchingItems.size();
         StringBuilder result = new StringBuilder();
         
-        // Сначала снимаем все предыдущие подсветки
         for (ComboBox<String> combo : matchingSelections.values()) {
             combo.getStyleClass().removeAll("correct", "wrong");
         }
@@ -324,10 +425,8 @@ public class MultipleChoiceController implements Initializable {
             
             if (isCorrect) {
                 correctCount++;
-                // Подсветка зеленым
                 combo.getStyleClass().add("correct");
             } else if (selected != null && !selected.isEmpty()) {
-                // Подсветка красным (если выбран неправильный ответ)
                 combo.getStyleClass().add("wrong");
             }
             
@@ -374,14 +473,19 @@ public class MultipleChoiceController implements Initializable {
             }
             
             Set<String> uniqueAnswers = new HashSet<>();
-            for (GrammarExercise ex : currentExercises) {
-                if (ex.getCorrectAnswer() != null && !ex.getCorrectAnswer().isEmpty() && !"matching".equals(ex.getType())) {
-                    uniqueAnswers.add(ex.getCorrectAnswer());
+            // Берем только multiple_choice упражнения для вариантов
+            List<GrammarExercise> multipleChoiceExercises = 
+                grammarService.getExercisesByType(MULTIPLE_CHOICE_TYPE);
+            
+            for (GrammarExercise ex : multipleChoiceExercises) {
+                if (ex.getCorrectAnswer() != null && !ex.getCorrectAnswer().isEmpty()) {
+                    if (!ex.getCorrectAnswer().equals(correctExercise.getCorrectAnswer())) {
+                        uniqueAnswers.add(ex.getCorrectAnswer());
+                    }
                 }
             }
             
             options.add(correctExercise.getCorrectAnswer());
-            uniqueAnswers.remove(correctExercise.getCorrectAnswer());
             
             List<String> otherAnswers = new ArrayList<>(uniqueAnswers);
             Collections.shuffle(otherAnswers);

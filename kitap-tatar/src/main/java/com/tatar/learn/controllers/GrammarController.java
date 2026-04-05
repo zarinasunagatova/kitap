@@ -50,12 +50,14 @@ public class GrammarController implements Initializable {
     
     private void setupCategoryFilter() {
         categoryCombo.getItems().add("Все категории");
-        Set<String> categories = grammarService.getCategories();
+        
+        // Оставляем как есть - для теории нужны категории правил
+        Set<String> categories = grammarService.getRuleCategories(); // или getRuleCategories()
         if (categories != null && !categories.isEmpty()) {
             categoryCombo.getItems().addAll(categories);
         }
-        categoryCombo.getSelectionModel().selectFirst();
         
+        categoryCombo.getSelectionModel().selectFirst();
         categoryCombo.setOnAction(e -> filterByCategory());
     }
     
@@ -96,7 +98,24 @@ public class GrammarController implements Initializable {
         if (!currentRules.isEmpty()) {
             topicsList.getSelectionModel().select(0);
             showRule(0);
+        } else {
+            showEmptyState();  // ← ДОБАВИТЬ ЭТОТ ВЫЗОВ
         }
+    }
+
+    private void showEmptyState() {
+        titleLabel.setText("📭 Нет правил");
+        titleLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 18px;");
+        
+        explanationArea.getChildren().clear();
+        Text emptyMessage = new Text("В выбранной категории пока нет грамматических правил.");
+        emptyMessage.setStyle("-fx-font-size: 16px; -fx-fill: #888;");
+        explanationArea.getChildren().add(emptyMessage);
+        
+        examplesArea.getChildren().clear();
+        Text examplesMessage = new Text("📖 Добавьте правила в файл grammar.json");
+        examplesMessage.setStyle("-fx-font-size: 14px; -fx-fill: #b5a3df; -fx-font-style: italic;");
+        examplesArea.getChildren().add(examplesMessage);
     }
     
     private void setupButtons() {

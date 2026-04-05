@@ -13,6 +13,7 @@ import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
+import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
@@ -20,7 +21,8 @@ import com.google.gson.stream.JsonWriter;
 public class JsonUtils {
     private static final Gson gson = new GsonBuilder()
         .setPrettyPrinting()
-        .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())  // адаптер для LocalDate
+        .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+        .registerTypeAdapter(new TypeToken<List<String>>(){}.getType(), new StringListAdapter())
         .create();
     
     // Сохранить объект в JSON файл
@@ -54,9 +56,28 @@ public class JsonUtils {
         return gson.fromJson(json, classOfT);
     }
     
-    // НОВЫЙ МЕТОД: Конвертировать JSON строку в объект с типом
+    // Конвертировать JSON строку в объект с типом
     public static <T> T fromJson(String json, Type typeOfT) {
         return gson.fromJson(json, typeOfT);
+    }
+    
+    // Экспорт слов в JSON с примерами
+    public static void exportWords(List<com.tatar.learn.models.Word> words, String filePath) throws IOException {
+        WordsExport export = new WordsExport();
+        export.setWords(words);
+        export.setExportDate(LocalDate.now());
+        export.setTotalWords(words.size());
+        
+        // Собираем уникальные категории
+        java.util.Set<String> categorySet = new java.util.HashSet<>();
+        for (com.tatar.learn.models.Word word : words) {
+            if (word.getCategory() != null && !word.getCategory().isEmpty()) {
+                categorySet.add(word.getCategory());
+            }
+        }
+        export.setCategories(new java.util.ArrayList<>(categorySet));
+        
+        saveToFile(export, filePath);
     }
 }
 
@@ -80,5 +101,37 @@ class LocalDateAdapter extends TypeAdapter<LocalDate> {
             return null;
         }
         return LocalDate.parse(in.nextString(), formatter);
+    }
+}
+
+// Адаптер для списка строк (примеров)
+class StringListAdapter extends TypeAdapter<List<String>> {
+    @Override
+    public void write(JsonWriter out, List<String> value) throws IOException {
+        if (value == null) {
+            out.nullValue();
+            return;
+        }
+        out.beginArray();
+        for (String str : value) {
+            out.value(str);
+        }
+        out.endArray();
+    }
+    
+    @Override
+    public List<String> read(JsonReader in) throws IOException {
+        if (in.peek() == JsonToken.NULL) {
+            in.nextNull();
+            return null;
+        }
+        
+        List<String> result = new java.util.ArrayList<>();
+        in.beginArray();
+        while (in.hasNext()) {
+            result.add(in.nextString());
+        }
+        in.endArray();
+        return result;
     }
 }

@@ -18,6 +18,7 @@
     <!-- СТАТИСТИКА -->
     <HBox alignment="CENTER" spacing="10">
         <Label fx:id="progressLabel" styleClass="progress-label" text="Выучено: 0 из 16 (средний 0%)" />
+        <Label fx:id="queueInfoLabel" styleClass="queue-info" text="📚 Загрузка..." />
         <Label fx:id="categoryLabel" styleClass="category-label" text="все" />
     </HBox>
     

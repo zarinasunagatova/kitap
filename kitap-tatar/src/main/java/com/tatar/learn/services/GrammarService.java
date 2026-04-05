@@ -232,17 +232,33 @@ public class GrammarService {
             e.printStackTrace();
             createDefaultExercises();
         }
+        
+        if (allExercises != null) {
+            long multipleChoiceCount = allExercises.stream()
+                .filter(e -> "multiple_choice".equals(e.getType())).count();
+            long typingCount = allExercises.stream()
+                .filter(e -> "typing".equals(e.getType())).count();
+            long matchingCount = allExercises.stream()
+                .filter(e -> "matching".equals(e.getType())).count();
+            
+            System.out.println("=== Статистика по типам упражнений ===");
+            System.out.println("Multiple Choice: " + multipleChoiceCount);
+            System.out.println("Typing: " + typingCount);
+            System.out.println("Matching: " + matchingCount);
+            System.out.println("=====================================");
+        }
     }
     
     private List<GrammarExercise> convertExercises(List<ExerciseJson> exercises) {
         List<GrammarExercise> converted = new ArrayList<>();
+        int skippedCount = 0;
         
         for (ExerciseJson ex : exercises) {
             GrammarExercise newEx = new GrammarExercise();
             newEx.setId(ex.getId());
             newEx.setRuleId(ex.getRuleId());
             newEx.setQuestion(ex.getQuestion());
-            newEx.setType(ex.getType());  // Сохраняем оригинальный тип!
+            newEx.setType(ex.getType());
             newEx.setExplanation(ex.getExplanation());
             
             // Определяем категорию
@@ -256,40 +272,116 @@ public class GrammarService {
             newEx.setCategory(category);
             newEx.setDifficulty("beginner");
             
-            // Для разных типов упражнений
+            // Конвертируем в зависимости от типа
+            boolean conversionSuccess = false;
+            
             if ("multiple_choice".equals(ex.getType())) {
-                newEx.setOptions(ex.getOptions());
-                if (ex.getCorrect() != null && ex.getOptions() != null && ex.getCorrect() < ex.getOptions().size()) {
-                    newEx.setCorrectAnswer(ex.getOptions().get(ex.getCorrect()));
-                } else {
-                    newEx.setCorrectAnswer("");
-                }
-                converted.add(newEx);
-                
+                conversionSuccess = convertMultipleChoice(ex, newEx);
             } else if ("typing".equals(ex.getType())) {
-                newEx.setCorrectAnswer(ex.getCorrectAnswer() != null ? ex.getCorrectAnswer() : "");
-                newEx.setOptions(null);
-                converted.add(newEx);
-                
+                conversionSuccess = convertTyping(ex, newEx);
             } else if ("matching".equals(ex.getType())) {
-                // Для matching - сохраняем пары в специальном поле
-                // Пока сохраняем как строку JSON, потом нужно будет парсить
-                if (ex.getPairs() != null) {
-                    // Сохраняем пары в explanation или создаем отдельное поле
-                    StringBuilder pairsStr = new StringBuilder();
-                    for (Pair pair : ex.getPairs()) {
-                        pairsStr.append(pair.getTatar()).append(":").append(pair.getRussian()).append(";");
-                    }
-                    newEx.setExplanation(pairsStr.toString());
-                }
+                conversionSuccess = convertMatching(ex, newEx);
+            }
+            
+            // ВАЖНО: добавляем только если конвертация успешна
+            if (conversionSuccess) {
                 converted.add(newEx);
-                System.out.println("Добавлено matching упражнение ID: " + ex.getId() + " с " + 
-                    (ex.getPairs() != null ? ex.getPairs().size() : 0) + " парами");
+            } else {
+                skippedCount++;
+                System.err.println("❌ Упражнение ID " + ex.getId() + " пропущено (не прошло валидацию)");
             }
         }
         
         System.out.println("Всего сконвертировано упражнений: " + converted.size());
+        if (skippedCount > 0) {
+            System.out.println("⚠️ Пропущено некорректных упражнений: " + skippedCount);
+        }
         return converted;
+    }
+
+    private boolean convertMultipleChoice(ExerciseJson ex, GrammarExercise newEx) {
+        // Проверяем опции
+        if (ex.getOptions() == null || ex.getOptions().isEmpty()) {
+            System.err.println("  - Нет options");
+            return false;
+        }
+        
+        newEx.setOptions(ex.getOptions());
+        
+        // Проверяем правильный ответ
+        if (ex.getCorrect() == null) {
+            System.err.println("  - Нет correct индекса");
+            return false;
+        }
+        
+        if (ex.getCorrect() >= ex.getOptions().size()) {
+            System.err.println("  - correct индекс " + ex.getCorrect() + 
+                             " выходит за пределы options (size=" + ex.getOptions().size() + ")");
+            return false;
+        }
+        
+        String correctAnswer = ex.getOptions().get(ex.getCorrect());
+        if (correctAnswer == null || correctAnswer.trim().isEmpty()) {
+            System.err.println("  - Правильный ответ пустой");
+            return false;
+        }
+        
+        newEx.setCorrectAnswer(correctAnswer);
+        return true;
+    }
+
+    private boolean convertTyping(ExerciseJson ex, GrammarExercise newEx) {
+        String correctAnswer = ex.getCorrectAnswer();
+        
+        if (correctAnswer == null || correctAnswer.trim().isEmpty()) {
+            System.err.println("  - Нет correctAnswer или он пустой");
+            return false;
+        }
+        
+        newEx.setCorrectAnswer(correctAnswer);
+        newEx.setOptions(null);
+        return true;
+    }
+
+    private boolean convertMatching(ExerciseJson ex, GrammarExercise newEx) {
+        if (ex.getPairs() == null || ex.getPairs().isEmpty()) {
+            System.err.println("  - Нет pairs для matching");
+            return false;
+        }
+        
+        StringBuilder pairsStr = new StringBuilder();
+        int validPairs = 0;
+        
+        for (Pair pair : ex.getPairs()) {
+            if (pair.getTatar() != null && !pair.getTatar().trim().isEmpty() &&
+                pair.getRussian() != null && !pair.getRussian().trim().isEmpty()) {
+                pairsStr.append(pair.getTatar().trim()).append(":")
+                        .append(pair.getRussian().trim()).append(";");
+                validPairs++;
+            } else {
+                System.err.println("  - Пропущена некорректная пара: " + pair);
+            }
+        }
+        
+        if (validPairs < 2) {
+            System.err.println("  - Недостаточно корректных пар (нужно минимум 2, найдено " + validPairs + ")");
+            return false;
+        }
+        
+        newEx.setExplanation(pairsStr.toString());
+        System.out.println("  - Matching упражнение ID " + ex.getId() + 
+                           ": " + validPairs + " корректных пар");
+        return true;
+    }
+    
+  
+    public List<GrammarExercise> getValidExercises() {
+        if (allExercises == null) {
+            return new ArrayList<>();
+        }
+        return allExercises.stream()
+            .filter(this::isValidExercise)
+            .collect(Collectors.toList());
     }
     
     private void extractCategories() {
@@ -318,6 +410,29 @@ public class GrammarService {
         }
         
         System.out.println("Категории грамматики: " + categories);
+    }
+    
+    
+    public Set<String> getExerciseCategories() {
+        Set<String> exerciseCategories = new TreeSet<>();
+        if (allExercises != null) {
+            exerciseCategories.addAll(allExercises.stream()
+                .map(GrammarExercise::getCategory)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()));
+        }
+        return exerciseCategories;
+    }
+
+    public Set<String> getRuleCategories() {
+        Set<String> ruleCategories = new TreeSet<>();
+        if (allRules != null) {
+            ruleCategories.addAll(allRules.stream()
+                .map(GrammarRule::getCategory)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()));
+        }
+        return ruleCategories;
     }
     
     private void createDefaultRules() {
@@ -392,6 +507,136 @@ public class GrammarService {
         System.out.println("Созданы упражнения по умолчанию: " + allExercises.size());
     }
     
+    private boolean isValidExercise(GrammarExercise exercise) {
+        if (exercise == null) {
+            System.err.println("❌ Валидация не пройдена: упражнение null");
+            return false;
+        }
+        
+        // Проверяем наличие ID
+        if (exercise.getId() <= 0) {
+            System.err.println("❌ Упражнение ID " + exercise.getId() + " пропущено: неверный ID");
+            return false;
+        }
+        
+        // Проверяем наличие вопроса
+        if (exercise.getQuestion() == null || exercise.getQuestion().trim().isEmpty()) {
+            System.err.println("❌ Упражнение ID " + exercise.getId() + " пропущено: отсутствует вопрос");
+            return false;
+        }
+        
+        // Проверяем тип упражнения
+        String type = exercise.getType();
+        if (type == null || type.trim().isEmpty()) {
+            System.err.println("❌ Упражнение ID " + exercise.getId() + " пропущено: отсутствует тип");
+            return false;
+        }
+        
+        // Валидация в зависимости от типа
+        switch (type) {
+            case "multiple_choice":
+                return validateMultipleChoice(exercise);
+            case "typing":
+                return validateTyping(exercise);
+            case "matching":
+                return validateMatching(exercise);
+            default:
+                System.err.println("❌ Упражнение ID " + exercise.getId() + 
+                                 " пропущено: неизвестный тип '" + type + "'");
+                return false;
+        }
+    }
+    private boolean validateMultipleChoice(GrammarExercise exercise) {
+        // Проверяем наличие опций
+        if (exercise.getOptions() == null || exercise.getOptions().isEmpty()) {
+            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+                             " пропущено: нет вариантов ответа (options)");
+            return false;
+        }
+        
+        // Проверяем, что опций достаточно (минимум 2, лучше 4)
+        if (exercise.getOptions().size() < 2) {
+            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+                             " пропущено: недостаточно вариантов ответа (нужно минимум 2, есть " + 
+                             exercise.getOptions().size() + ")");
+            return false;
+        }
+        
+        // Проверяем наличие правильного ответа
+        if (exercise.getCorrectAnswer() == null || exercise.getCorrectAnswer().trim().isEmpty()) {
+            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+                             " пропущено: нет правильного ответа (correctAnswer)");
+            return false;
+        }
+        
+        // Проверяем, что правильный ответ есть среди опций
+        if (!exercise.getOptions().contains(exercise.getCorrectAnswer())) {
+            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+                             " пропущено: правильный ответ '" + exercise.getCorrectAnswer() + 
+                             "' отсутствует в списке опций");
+            return false;
+        }
+        
+        return true;
+    }
+
+    private boolean validateTyping(GrammarExercise exercise) {
+        // Проверяем наличие правильного ответа
+        if (exercise.getCorrectAnswer() == null || exercise.getCorrectAnswer().trim().isEmpty()) {
+            System.err.println("❌ Typing упражнение ID " + exercise.getId() + 
+                             " пропущено: нет правильного ответа (correctAnswer)");
+            return false;
+        }
+        
+        // Проверяем, что ответ не слишком короткий (опционально)
+        if (exercise.getCorrectAnswer().trim().length() < 1) {
+            System.err.println("❌ Typing упражнение ID " + exercise.getId() + 
+                             " пропущено: правильный ответ слишком короткий");
+            return false;
+        }
+        
+        return true;
+    }
+
+    private boolean validateMatching(GrammarExercise exercise) {
+        // Проверяем наличие пар
+        String pairsStr = exercise.getExplanation();
+        if (pairsStr == null || pairsStr.trim().isEmpty()) {
+            System.err.println("❌ Matching упражнение ID " + exercise.getId() + 
+                             " пропущено: нет пар для сопоставления");
+            return false;
+        }
+        
+        // Парсим и проверяем пары
+        String[] pairs = pairsStr.split(";");
+        int validPairs = 0;
+        
+        for (String pair : pairs) {
+            if (pair.contains(":")) {
+                String[] parts = pair.split(":");
+                if (parts.length == 2 && 
+                    !parts[0].trim().isEmpty() && 
+                    !parts[1].trim().isEmpty()) {
+                    validPairs++;
+                } else {
+                    System.err.println("⚠️ Matching упражнение ID " + exercise.getId() + 
+                                     ": некорректная пара '" + pair + "'");
+                }
+            }
+        }
+        
+        if (validPairs < 2) {
+            System.err.println("❌ Matching упражнение ID " + exercise.getId() + 
+                             " пропущено: недостаточно корректных пар (нужно минимум 2, найдено " + 
+                             validPairs + ")");
+            return false;
+        }
+        
+        System.out.println("✅ Matching упражнение ID " + exercise.getId() + 
+                           " прошло валидацию: " + validPairs + " корректных пар");
+        return true;
+    }
+    
     // Методы для правил
     public List<GrammarRule> getAllRules() {
         return allRules != null ? allRules : new ArrayList<>();
@@ -422,13 +667,40 @@ public class GrammarService {
         return allExercises != null ? allExercises : new ArrayList<>();
     }
     
-    public List<GrammarExercise> getExercisesByCategory(String category) {
-        if (category == null || category.equals("Все категории")) {
-            return getAllExercises();
+    public List<GrammarExercise> getExercisesByType(String type) {
+        if (type == null || type.isEmpty()) {
+            return new ArrayList<>();
         }
         return getAllExercises().stream()
+            .filter(ex -> type.equals(ex.getType()))
+            .collect(Collectors.toList());
+    }
+    
+    public List<GrammarExercise> getExercisesByTypeAndCategory(String type, String category) {
+        List<GrammarExercise> byType = getExercisesByType(type);
+        
+        if (category == null || category.equals("Все категории")) {
+            return byType;
+        }
+        
+        return byType.stream()
             .filter(ex -> category.equals(ex.getCategory()))
             .collect(Collectors.toList());
+    }
+    
+    public boolean hasExercisesOfType(String type) {
+        return !getExercisesByType(type).isEmpty();
+    }
+    
+    public Set<String> getAvailableTypes() {
+        Set<String> types = new TreeSet<>();
+        if (allExercises != null) {
+            types.addAll(allExercises.stream()
+                .map(GrammarExercise::getType)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()));
+        }
+        return types;
     }
     
     public GrammarExercise getExerciseById(int id) {

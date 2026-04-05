@@ -8,27 +8,28 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.animation.*;
 import javafx.util.Duration;
 import java.net.URL;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
+import java.util.stream.Collectors;
+import javafx.application.Platform;
 
 public class LearnController implements Initializable {
     
     @FXML private Label tatarWordLabel;
     @FXML private Label russianWordLabel;
     @FXML private Label progressLabel;
+    @FXML private Label queueInfoLabel;  // НОВЫЙ: информация об очереди обучения
     @FXML private VBox cardFront;
     @FXML private VBox cardBack;
     @FXML private Button playButton;
     @FXML private Button easyButton;
-    @FXML private Button goodButton;      // НОВАЯ кнопка (средняя оценка)
+    @FXML private Button goodButton;
     @FXML private Button hardButton;
     @FXML private Button againButton;
     @FXML private Button prevButton;
@@ -43,37 +44,39 @@ public class LearnController implements Initializable {
     
     private DatabaseService dbService;
     private TTSService ttsService;
-    private List<Word> words;
-    private List<Word> filteredWords;
+    private List<Word> allWords;
+    private List<Word> dueWords;      // Слова для повторения сегодня
+    private List<Word> newWords;      // Новые слова
+    private Queue<Word> learningQueue; // Очередь обучения
+    private Word currentWord;
     private int currentIndex = 0;
     private boolean isFlipped = false;
+    private boolean databaseAvailable = false;
+    private String currentFilterCategory = "Все категории";  
     
     // SM-2 константы
     private static final int[] INTERVALS = {0, 1, 3, 7, 14, 30, 60, 120, 180, 365};
     private static final double MIN_EASE = 1.3;
     private static final double MAX_EASE = 2.5;
     
+    // Настройки обучения
+    private static final int MAX_NEW_WORDS_PER_DAY = 10;  // Максимум новых слов в день
+    private static final int MAX_DUE_WORDS_PER_SESSION = 50; // Максимум слов для повторения за сессию
+    
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        dbService = DatabaseService.getInstance();
-        ttsService = TTSService.getInstance();
-        
-        voiceStatusLabel.setText(ttsService.getStatus());
-        
-        words = dbService.getAllWords();
-        filteredWords = new ArrayList<>(words);
-        
-        // Проверяем, есть ли примеры у слов
-        for (Word w : words) {
-            if (w.getExamples() != null && !w.getExamples().isEmpty()) {
-                System.out.println("Word '" + w.getTatar() + "' has " + w.getExamples().size() + " examples");
-                for (String ex : w.getExamples()) {
-                    System.out.println("  - " + ex);
-                }
-            }
+        // Инициализируем БД с обработкой ошибок
+        if (!initDatabase()) {
+            showDatabaseErrorAndDisable();
+            return;
         }
         
-        if (filteredWords.isEmpty()) {
+        ttsService = TTSService.getInstance();
+        voiceStatusLabel.setText(ttsService.getStatus());
+        
+        loadWordsAndBuildQueue();
+        
+        if (learningQueue == null || learningQueue.isEmpty()) {
             showAlert("Нет слов", "Добавьте слова в словарь");
             return;
         }
@@ -82,11 +85,180 @@ public class LearnController implements Initializable {
         setupButtons();
         showCurrentWord();
         updateProgress();
+        
+        currentFilterCategory = "Все категории";
     }
-  
+    
+    private boolean initDatabase() {
+		try {
+            dbService = DatabaseService.getInstance();
+            
+            if (dbService == null) {
+                showErrorOnStatus("❌ База данных недоступна");
+                return false;
+            }
+            
+            if (!dbService.isHealthy()) {
+                showErrorOnStatus("❌ База данных нездорова");
+                return false;
+            }
+            
+            databaseAvailable = true;
+            return true;
+            
+        } catch (SQLException e) {
+            System.err.println("Database init failed: " + e.getMessage());
+            showErrorOnStatus("❌ Ошибка БД: " + e.getMessage());
+            databaseAvailable = false;
+            return false;
+        }
+    }
+
+    private void showDatabaseErrorAndDisable() {
+        // Отключаем все кнопки
+        easyButton.setDisable(true);
+        goodButton.setDisable(true);
+        hardButton.setDisable(true);
+        againButton.setDisable(true);
+        playButton.setDisable(true);
+        prevButton.setDisable(true);
+        nextButton.setDisable(true);
+        applyFilterButton.setDisable(true);
+        categoryCombo.setDisable(true);
+        
+        // Показываем сообщение
+        tatarWordLabel.setText("❌ База данных недоступна");
+        russianWordLabel.setText("Пожалуйста, перезапустите приложение");
+        progressLabel.setText("Ошибка подключения к БД");
+    }
+
+    private void showErrorOnStatus(String message) {
+        if (queueInfoLabel != null) {
+            queueInfoLabel.setText(message);
+        }
+        System.err.println(message);
+    }
+    
+    /**
+     * Загружает слова и строит очередь обучения на основе интервалов
+     */
+    private void loadWordsAndBuildQueue() {
+        allWords = dbService.getAllWords();
+        
+        // Разделяем слова на категории
+        dueWords = new ArrayList<>();
+        newWords = new ArrayList<>();
+        
+        LocalDate today = LocalDate.now();
+        
+        for (Word word : allWords) {
+            if (isWordDueForReview(word, today)) {
+                dueWords.add(word);
+            } else if (word.getTimesCorrect() == 0) {
+                newWords.add(word);
+            }
+        }
+        
+        // Сортируем due слова по приоритету (чем дольше не повторяли, тем выше приоритет)
+        dueWords.sort((w1, w2) -> {
+            int priority1 = getReviewPriority(w1, today);
+            int priority2 = getReviewPriority(w2, today);
+            return Integer.compare(priority2, priority1); // Выше приоритет - первым
+        });
+        
+        // Сортируем новые слова (можно по алфавиту или случайно)
+        Collections.shuffle(newWords);
+        
+        // Строим очередь обучения
+        learningQueue = new LinkedList<>();
+        
+        // Сначала добавляем due слова
+        int dueToTake = Math.min(dueWords.size(), MAX_DUE_WORDS_PER_SESSION);
+        for (int i = 0; i < dueToTake; i++) {
+            learningQueue.add(dueWords.get(i));
+        }
+        
+        // Затем добавляем новые слова (ограниченное количество)
+        int newToTake = Math.min(newWords.size(), MAX_NEW_WORDS_PER_DAY);
+        for (int i = 0; i < newToTake; i++) {
+            learningQueue.add(newWords.get(i));
+        }
+        
+        System.out.println("=== Learning Queue Built ===");
+        System.out.println("Due words: " + dueWords.size() + " (taking " + dueToTake + ")");
+        System.out.println("New words: " + newWords.size() + " (taking " + newToTake + ")");
+        System.out.println("Total in queue: " + learningQueue.size());
+        
+        // Обновляем UI информацию
+        updateQueueInfo();
+    }
+    
+    /**
+     * Проверяет, нужно ли повторить слово сегодня
+     */
+    private boolean isWordDueForReview(Word word, LocalDate today) {
+        if (word.getTimesCorrect() == 0) {
+            return false; // Новые слова обрабатываются отдельно
+        }
+        
+        if (word.getLastReviewed() == null) {
+            return true; // Никогда не повторяли - пора
+        }
+        
+        int interval = getNextInterval(word.getTimesCorrect());
+        LocalDate nextReviewDate = word.getLastReviewed().plusDays(interval);
+        
+        return !nextReviewDate.isAfter(today);
+    }
+    
+    /**
+     * Вычисляет приоритет повторения (чем больше просрочка, тем выше приоритет)
+     */
+    private int getReviewPriority(Word word, LocalDate today) {
+        if (word.getLastReviewed() == null) {
+            return Integer.MAX_VALUE;
+        }
+        
+        int interval = getNextInterval(word.getTimesCorrect());
+        LocalDate nextReviewDate = word.getLastReviewed().plusDays(interval);
+        
+        if (nextReviewDate.isAfter(today)) {
+            return 0; // Еще не пора
+        }
+        
+        // Количество дней просрочки
+        long overdue = ChronoUnit.DAYS.between(nextReviewDate, today);
+        return (int) overdue + 1;
+    }
+    
+    /**
+     * Обновляет информацию об очереди обучения
+     */
+    private void updateQueueInfo() {
+        if (learningQueue == null) return;
+        
+        int dueCount = 0;
+        int newCount = 0;
+        
+        for (Word w : learningQueue) {
+            if (w.getTimesCorrect() == 0) {
+                newCount++;
+            } else {
+                dueCount++;
+            }
+        }
+        
+        String info = String.format("📚 Очередь: %d слов (повтор: %d, новых: %d)", 
+            learningQueue.size(), dueCount, newCount);
+        
+        if (queueInfoLabel != null) {
+            queueInfoLabel.setText(info);
+        }
+    }
+    
     private void setupCategoryFilter() {
         Set<String> categories = new HashSet<>();
-        for (Word word : words) {
+        for (Word word : allWords) {
             if (word.getCategory() != null && !word.getCategory().isEmpty()) {
                 categories.add(word.getCategory());
             }
@@ -102,34 +274,63 @@ public class LearnController implements Initializable {
     
     private void applyFilter() {
         String selected = categoryCombo.getValue();
+        currentFilterCategory = selected;  
+        
+        List<Word> filteredAllWords;
+        
         if (selected == null || selected.equals("Все категории")) {
-            filteredWords = new ArrayList<>(words);
+            filteredAllWords = new ArrayList<>(allWords);
+            currentFilterCategory = "Все категории";
         } else {
-            filteredWords.clear();
-            for (Word word : words) {
-                if (selected.equals(word.getCategory())) {
-                    filteredWords.add(word);
-                }
-            }
+            filteredAllWords = allWords.stream()
+                .filter(w -> selected.equals(w.getCategory()))
+                .collect(Collectors.toList());
+            currentFilterCategory = selected;
         }
         
-        if (filteredWords.isEmpty()) {
+        if (filteredAllWords.isEmpty()) {
             showAlert("Нет слов", "В выбранной категории нет слов");
-            filteredWords = new ArrayList<>(words);
-            categoryCombo.getSelectionModel().selectFirst();
+            return;
+        }
+        
+        // Перестраиваем очередь с учетом фильтра
+        LocalDate today = LocalDate.now();
+        
+        List<Word> filteredDue = filteredAllWords.stream()
+            .filter(w -> isWordDueForReview(w, today))
+            .collect(Collectors.toList());
+        
+        List<Word> filteredNew = filteredAllWords.stream()
+            .filter(w -> w.getTimesCorrect() == 0)
+            .collect(Collectors.toList());
+        
+        learningQueue.clear();
+        
+        int dueToTake = Math.min(filteredDue.size(), MAX_DUE_WORDS_PER_SESSION);
+        for (int i = 0; i < dueToTake; i++) {
+            learningQueue.add(filteredDue.get(i));
+        }
+        
+        int newToTake = Math.min(filteredNew.size(), MAX_NEW_WORDS_PER_DAY);
+        for (int i = 0; i < newToTake; i++) {
+            learningQueue.add(filteredNew.get(i));
+        }
+        
+        if (learningQueue.isEmpty()) {
+            showAlert("Нет слов для изучения", 
+                "В выбранной категории нет слов, которые нужно повторять сегодня");
         }
         
         currentIndex = 0;
+        updateQueueInfo();
         showCurrentWord();
         updateProgress();
     }
     
     private void setupButtons() {
-        // Только карточки реагируют на клик для переворота
         cardFront.setOnMouseClicked(e -> flipCard());
         cardBack.setOnMouseClicked(e -> flipCard());
         
-        // Кнопки не должны вызывать переворот
         playButton.setOnAction(e -> playCurrentWord());
         againButton.setOnAction(e -> handleAgain());
         hardButton.setOnAction(e -> handleHard());
@@ -138,7 +339,7 @@ public class LearnController implements Initializable {
         prevButton.setOnAction(e -> previousWord());
         nextButton.setOnAction(e -> nextWord());
         
-        // Важно: запрещаем событиям мыши от кнопок доходить до карточки
+        // Запрещаем событиям мыши от кнопок доходить до карточки
         playButton.setOnMouseClicked(javafx.scene.input.MouseEvent::consume);
         againButton.setOnMouseClicked(javafx.scene.input.MouseEvent::consume);
         hardButton.setOnMouseClicked(javafx.scene.input.MouseEvent::consume);
@@ -149,7 +350,7 @@ public class LearnController implements Initializable {
     }
     
     private void flipCard() {
-        if (filteredWords.isEmpty()) return;
+        if (currentWord == null) return;
         
         ScaleTransition scaleOut = new ScaleTransition(Duration.millis(150), 
             isFlipped ? cardBack : cardFront);
@@ -162,8 +363,7 @@ public class LearnController implements Initializable {
             cardBack.setManaged(isFlipped);
             
             if (isFlipped) {
-                Word word = filteredWords.get(currentIndex);
-                russianWordLabel.setText(word.getRussian());
+                russianWordLabel.setText(currentWord.getRussian());
             }
             
             ScaleTransition scaleIn = new ScaleTransition(Duration.millis(150), 
@@ -177,162 +377,139 @@ public class LearnController implements Initializable {
     }
     
     private void playCurrentWord() {
-        if (filteredWords.isEmpty()) return;
-        
-        Word word = filteredWords.get(currentIndex);
-        ttsService.speakWithFeedback(word.getTatar(), playButton, "🔊");
+        if (currentWord == null) return;
+        ttsService.speakWithFeedback(currentWord.getTatar(), playButton, "🔊");
     }
     
-    // ========== SM-2 АЛГОРИТМ ==========
+    // ========== SM-2 АЛГОРИТМ С ОБНОВЛЕНИЕМ СТАТИСТИКИ ==========
     
-    /**
-     * Обработка ответа "Снова" (не знал слово)
-     */
     private void handleAgain() {
-        if (filteredWords.isEmpty()) return;
+        if (currentWord == null) return;
         
-        Word word = filteredWords.get(currentIndex);
-        
-        // Сброс прогресса для этого слова
-        word.setTimesCorrect(0);
-        word.setTimesWrong(word.getTimesWrong() + 1);
-        word.setLastReviewed(LocalDate.now());
-        word.setEaseFactor(Math.max(MIN_EASE, word.getEaseFactor() - 0.2)); // уменьшаем легкость
+        // Сброс прогресса
+        currentWord.setTimesCorrect(0);
+        currentWord.setTimesWrong(currentWord.getTimesWrong() + 1);
+        currentWord.setLastReviewed(LocalDate.now());
+        currentWord.setEaseFactor(Math.max(MIN_EASE, currentWord.getEaseFactor() - 0.2));
         
         // Сохраняем в БД
-        dbService.saveWordAttempt(word.getId(), false);
-        dbService.updateWord(word);
+        dbService.saveWordAttempt(currentWord.getId(), false);
+        dbService.updateWord(currentWord);
         
         showTemporaryMessage("🔄 Сброс (повторить сегодня)", againButton);
         
-        // Сразу показываем перевод
         if (!isFlipped) flipCard();
+        
+        // Остаемся на этом же слове для повторения
     }
     
-    /**
-     * Обработка ответа "Трудно" (с трудом вспомнил)
-     */
     private void handleHard() {
-        if (filteredWords.isEmpty()) return;
+        if (currentWord == null) return;
         
-        Word word = filteredWords.get(currentIndex);
+        currentWord.setTimesCorrect(currentWord.getTimesCorrect() + 1);
+        currentWord.setLastReviewed(LocalDate.now());
+        currentWord.setEaseFactor(Math.max(MIN_EASE, currentWord.getEaseFactor() - 0.15));
         
-        // Увеличиваем счетчик правильных, но немного
-        word.setTimesCorrect(word.getTimesCorrect() + 1);
-        word.setLastReviewed(LocalDate.now());
-        word.setEaseFactor(Math.max(MIN_EASE, word.getEaseFactor() - 0.15)); // чуть уменьшаем
+        dbService.saveWordAttempt(currentWord.getId(), true);
+        dbService.updateWord(currentWord);
         
-        // Сохраняем в БД
-        dbService.saveWordAttempt(word.getId(), true);
-        dbService.updateWord(word);
-        
-        int nextInterval = getNextInterval(word.getTimesCorrect());
+        int nextInterval = getNextInterval(currentWord.getTimesCorrect());
         showTemporaryMessage("⚠️ Повтор через " + nextInterval + " дн.", hardButton);
         
-        nextWord();
+        moveToNextWord();
     }
     
-    /**
-     * Обработка ответа "Хорошо" (вспомнил, но не сразу)
-     */
     private void handleGood() {
-        if (filteredWords.isEmpty()) return;
+        if (currentWord == null) return;
         
-        Word word = filteredWords.get(currentIndex);
+        currentWord.setTimesCorrect(currentWord.getTimesCorrect() + 1);
+        currentWord.setLastReviewed(LocalDate.now());
         
-        // Нормальный ответ
-        word.setTimesCorrect(word.getTimesCorrect() + 1);
-        word.setLastReviewed(LocalDate.now());
-        // Ease factor не меняется
+        dbService.saveWordAttempt(currentWord.getId(), true);
+        dbService.updateWord(currentWord);
         
-        // Сохраняем в БД
-        dbService.saveWordAttempt(word.getId(), true);
-        dbService.updateWord(word);
-        
-        int nextInterval = getNextInterval(word.getTimesCorrect());
+        int nextInterval = getNextInterval(currentWord.getTimesCorrect());
         showTemporaryMessage("✅ Повтор через " + nextInterval + " дн.", goodButton);
         
-        nextWord();
+        moveToNextWord();
     }
     
-    /**
-     * Обработка ответа "Легко" (сразу знал)
-     */
     private void handleEasy() {
-        if (filteredWords.isEmpty()) return;
+        if (currentWord == null) return;
         
-        Word word = filteredWords.get(currentIndex);
+        currentWord.setTimesCorrect(currentWord.getTimesCorrect() + 1);
+        currentWord.setLastReviewed(LocalDate.now());
+        currentWord.setEaseFactor(Math.min(MAX_EASE, currentWord.getEaseFactor() + 0.1));
         
-        // Отличный ответ
-        word.setTimesCorrect(word.getTimesCorrect() + 1);
-        word.setLastReviewed(LocalDate.now());
-        word.setEaseFactor(Math.min(MAX_EASE, word.getEaseFactor() + 0.1)); // увеличиваем легкость
+        dbService.saveWordAttempt(currentWord.getId(), true);
+        dbService.updateWord(currentWord);
         
-        // Сохраняем в БД
-        dbService.saveWordAttempt(word.getId(), true);
-        dbService.updateWord(word);
-        
-        int nextInterval = getNextInterval(word.getTimesCorrect());
+        int nextInterval = getNextInterval(currentWord.getTimesCorrect());
         showTemporaryMessage("🚀 Повтор через " + nextInterval + " дн.", easyButton);
         
-        nextWord();
+        moveToNextWord();
     }
     
-    /**
-     * Получить следующий интервал повторения (в днях)
-     */
-    private int getNextInterval(int timesCorrect) {
-        if (timesCorrect >= INTERVALS.length) {
-            return INTERVALS[INTERVALS.length - 1];
-        }
-        return INTERVALS[timesCorrect];
-    }
-    
-    /**
-     * Показать следующее слово (с учетом интервалов)
-     */
-    private void nextWord() {
-        if (filteredWords.isEmpty()) return;
+    private void moveToNextWord() {
+        // Удаляем текущее слово из очереди
+        learningQueue.poll();
         
-        // Ищем следующее слово, которое нужно повторить сегодня
-        Word currentWord = filteredWords.get(currentIndex);
-        
-        // Если текущее слово было только что отвечено, сохраняем его прогресс
-        if (currentWord.getLastReviewed() != null && 
-            currentWord.getLastReviewed().equals(LocalDate.now())) {
+        if (learningQueue.isEmpty()) {
+            // Очередь пуста - проверяем, есть ли еще слова для загрузки
+            loadWordsAndBuildQueue();
             
-            // Оставляем его в списке, но отметим, что сегодня его больше не показываем
-            // TODO: реальная фильтрация слов для сегодняшнего дня
+            if (learningQueue.isEmpty()) {
+                showCongratsDialog();
+                return;
+            }
         }
         
-        currentIndex++;
-        if (currentIndex >= filteredWords.size()) {
-            currentIndex = 0;
-            showCongratsDialog();
-        }
+        currentIndex = 0;
+        updateQueueInfo();
         showCurrentWord();
+    }
+    
+    private void nextWord() {
+        if (learningQueue == null || learningQueue.isEmpty()) return;
+        
+        // Пропускаем слово (не обновляя прогресс)
+        Word skipped = learningQueue.poll();
+        if (skipped != null) {
+            // Возвращаем в конец очереди для следующей сессии
+            // Но для простоты просто удаляем
+            System.out.println("Skipped word: " + skipped.getTatar());
+        }
+        
+        if (learningQueue.isEmpty()) {
+            loadWordsAndBuildQueue();
+            if (learningQueue.isEmpty()) {
+                showCongratsDialog();
+                return;
+            }
+        }
+        
+        showCurrentWord();
+        updateQueueInfo();
     }
     
     private void previousWord() {
-        if (filteredWords.isEmpty()) return;
-        
-        currentIndex--;
-        if (currentIndex < 0) {
-            currentIndex = filteredWords.size() - 1;
-        }
-        showCurrentWord();
+        // В интервальном повторении нет смысла возвращаться назад
+        // Но для удобства показываем предыдущее слово из очереди
+        showTemporaryMessage("⏪ Только вперед!", prevButton);
     }
     
     private void showCurrentWord() {
-        if (filteredWords.isEmpty()) return;
+        if (learningQueue == null || learningQueue.isEmpty()) {
+            return;
+        }
         
-        Word word = filteredWords.get(currentIndex);
+        currentWord = learningQueue.peek();
+        if (currentWord == null) return;
         
-        tatarWordLabel.setText(word.getTatar());
-        russianWordLabel.setText(word.getRussian());
+        tatarWordLabel.setText(currentWord.getTatar());
+        russianWordLabel.setText(currentWord.getRussian());
         
-        // ПОКАЗЫВАЕМ ПРИМЕРЫ
-        showExamples(word);
+        showExamples(currentWord);
         
         isFlipped = false;
         cardFront.setVisible(true);
@@ -340,15 +517,14 @@ public class LearnController implements Initializable {
         cardBack.setVisible(false);
         cardBack.setManaged(false);
         
-        // Удаляем старые классы прогресса
+        // Обновляем цвет в зависимости от прогресса
         tatarWordLabel.getStyleClass().removeAll("progress-zero", "progress-low", "progress-medium", "progress-high");
         
-        // Новая система: цвет в зависимости от статуса SM-2
-        if (word.getTimesCorrect() >= 5) {
+        if (currentWord.getTimesCorrect() >= 5) {
             tatarWordLabel.getStyleClass().add("progress-high");
-        } else if (word.getTimesCorrect() >= 2) {
+        } else if (currentWord.getTimesCorrect() >= 2) {
             tatarWordLabel.getStyleClass().add("progress-medium");
-        } else if (word.getTimesCorrect() > 0) {
+        } else if (currentWord.getTimesCorrect() > 0) {
             tatarWordLabel.getStyleClass().add("progress-low");
         } else {
             tatarWordLabel.getStyleClass().add("progress-zero");
@@ -380,37 +556,26 @@ public class LearnController implements Initializable {
                 examplesList.getChildren().add(exampleBox);
             }
         } else {
-            // Если нет примеров, показываем сообщение
             examplesScroll.setVisible(true);
             Label noExamplesLabel = new Label("Нет примеров для этого слова");
             noExamplesLabel.getStyleClass().add("no-examples-label");
             examplesList.getChildren().add(noExamplesLabel);
         }
     }
-
     
     private void updateProgress() {
-        if (filteredWords.isEmpty()) {
+        if (currentWord == null) {
             progressLabel.setText("📊 Нет слов");
             return;
         }
         
-        Word word = filteredWords.get(currentIndex);
-        int total = filteredWords.size();
-        int learned = 0;
-        int inProgress = 0;
-        int newWords = 0;
-        
-        for (Word w : filteredWords) {
-            if (w.getTimesCorrect() >= 5) learned++;
-            else if (w.getTimesCorrect() > 0) inProgress++;
-            else newWords++;
-        }
+        int total = learningQueue.size();
+        int position = currentIndex + 1;
         
         String nextReview = "сегодня";
-        if (word.getLastReviewed() != null && word.getTimesCorrect() > 0) {
-            int interval = getNextInterval(word.getTimesCorrect());
-            LocalDate nextDate = word.getLastReviewed().plusDays(interval);
+        if (currentWord.getLastReviewed() != null && currentWord.getTimesCorrect() > 0) {
+            int interval = getNextInterval(currentWord.getTimesCorrect());
+            LocalDate nextDate = currentWord.getLastReviewed().plusDays(interval);
             if (nextDate.isAfter(LocalDate.now())) {
                 long daysLeft = ChronoUnit.DAYS.between(LocalDate.now(), nextDate);
                 nextReview = "через " + daysLeft + " дн.";
@@ -418,9 +583,16 @@ public class LearnController implements Initializable {
         }
         
         progressLabel.setText(String.format(
-            "📊 Выучено: %d | В процессе: %d | Новых: %d | Текущее: %d раз | След: %s",
-            learned, inProgress, newWords, word.getTimesCorrect(), nextReview
+            "📊 Слово %d из %d | Правильных: %d | След: %s",
+            position, total, currentWord.getTimesCorrect(), nextReview
         ));
+    }
+    
+    private int getNextInterval(int timesCorrect) {
+        if (timesCorrect >= INTERVALS.length) {
+            return INTERVALS[INTERVALS.length - 1];
+        }
+        return INTERVALS[timesCorrect];
     }
     
     private void showTemporaryMessage(String message, Button button) {
@@ -433,31 +605,43 @@ public class LearnController implements Initializable {
     }
     
     private void showCongratsDialog() {
+        // Подсчитываем статистику
         int learned = 0;
         int inProgress = 0;
-        int newWords = 0;
+        int newCount = 0;
         
-        for (Word w : filteredWords) {
+        for (Word w : allWords) {
             if (w.getTimesCorrect() >= 5) learned++;
             else if (w.getTimesCorrect() > 0) inProgress++;
-            else newWords++;
+            else newCount++;
         }
         
-        String category = filteredWords.get(0).getCategory();
+        // Формируем информацию о категории
+        String categoryInfo;
+        if (currentFilterCategory == null || currentFilterCategory.equals("Все категории")) {
+            categoryInfo = "📚 Категория: Все категории";
+        } else {
+            categoryInfo = "📚 Категория: " + currentFilterCategory;
+        }
         
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("🎉 Отличная работа!");
-        alert.setHeaderText("Вы просмотрели все доступные слова!");
+        alert.setHeaderText("Вы завершили сегодняшнюю сессию!");
         alert.setContentText(String.format(
-            "Категория: %s\n\n" +
-            "✅ Выучено: %d\n" +
+            "📊 Статистика на сегодня:\n\n" +
+            "%s\n" +
+            "✅ Выучено (5+ раз): %d\n" +
             "📖 В процессе: %d\n" +
-            "🆕 Новых: %d\n\n" +
-            "Завтра будет больше слов для повторения!",
-            category != null ? category : "Все категории",
-            learned, inProgress, newWords
+            "🆕 Новых слов: %d\n\n" +
+            "🎯 Завтра вас ждут новые слова для повторения!\n" +
+            "Продолжайте в том же духе! 💪",
+            categoryInfo, learned, inProgress, newCount
         ));
         alert.showAndWait();
+        
+        // Закрываем окно обучения
+        Stage stage = (Stage) progressLabel.getScene().getWindow();
+        stage.close();
     }
     
     private void showAlert(String title, String message) {
