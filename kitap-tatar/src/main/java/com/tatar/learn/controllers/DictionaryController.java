@@ -3,7 +3,7 @@ package com.tatar.learn.controllers;
 import com.tatar.learn.models.Word;
 import com.tatar.learn.services.DatabaseService;
 import com.tatar.learn.services.TTSService;
-import javafx.application.Platform;
+import com.tatar.learn.services.TopicsService;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -14,14 +14,12 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
 import javafx.geometry.Insets;
 import java.net.URL;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
-import java.io.File;
-import com.tatar.learn.services.ImportService;
 
 public class DictionaryController implements Initializable {
     
@@ -232,6 +230,7 @@ public class DictionaryController implements Initializable {
         });
     }
     
+ // Добавьте этот метод в DictionaryController.java
     private void loadWords() {
         if (!databaseAvailable) {
             showDatabaseErrorAndDisable();
@@ -241,7 +240,14 @@ public class DictionaryController implements Initializable {
         try {
             statusLabel.setText("Загрузка слов...");
             wordList.clear();
-            wordList.addAll(dbService.getAllWords());
+            
+            // Загружаем ТОЛЬКО слова из пройденных тем
+            TopicsService topicsService = TopicsService.getInstance();
+            List<Word> learnedWords = topicsService.getAllLearnedWords();
+            
+            wordList.addAll(learnedWords);
+            
+            System.out.println("Загружено слов из пройденных тем: " + wordList.size());
             
             filteredData = new FilteredList<>(wordList, p -> true);
             SortedList<Word> sortedData = new SortedList<>(filteredData);
@@ -249,7 +255,7 @@ public class DictionaryController implements Initializable {
             
             wordsTable.setItems(sortedData);
             updateCountLabel();
-            statusLabel.setText("✅ Загружено " + wordList.size() + " слов");
+            statusLabel.setText("✅ Загружено " + wordList.size() + " слов из пройденных тем");
         } catch (Exception e) {
             statusLabel.setText("❌ Ошибка загрузки слов: " + e.getMessage());
             e.printStackTrace();

@@ -108,8 +108,12 @@ public class GrammarService {
     
     private void loadRules() {
         try {
-            // Загружаем из ресурсов /data/grammar/grammar.json
+            // ПРАВИЛЬНЫЙ ПУТЬ: /data/grammar/grammar.json
             InputStream is = getClass().getResourceAsStream("/data/grammar/grammar.json");
+            
+            if (is == null) {
+                is = getClass().getClassLoader().getResourceAsStream("data/grammar/grammar.json");
+            }
             
             if (is != null) {
                 String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
@@ -131,29 +135,6 @@ public class GrammarService {
                 }
             }
             
-            // Если не нашли в ресурсах, пробуем в файловой системе
-            java.nio.file.Path rulesPath = java.nio.file.Paths.get("data", "grammar", "grammar.json");
-            if (java.nio.file.Files.exists(rulesPath)) {
-                String json = new String(java.nio.file.Files.readAllBytes(rulesPath), StandardCharsets.UTF_8);
-                GrammarWrapper wrapper = gson.fromJson(json, GrammarWrapper.class);
-                
-                if (wrapper != null && wrapper.getRules() != null && !wrapper.getRules().isEmpty()) {
-                    allRules = new ArrayList<>();
-                    for (GrammarJsonRule jsonRule : wrapper.getRules()) {
-                        GrammarRule rule = new GrammarRule();
-                        rule.setId(jsonRule.getId());
-                        rule.setTitle(jsonRule.getTitle());
-                        rule.setCategory(jsonRule.getCategory());
-                        rule.setExplanation(formatExplanation(jsonRule));
-                        rule.setExamples(formatExamples(jsonRule.getExamples()));
-                        allRules.add(rule);
-                    }
-                    System.out.println("Загружено правил из data/grammar/grammar.json: " + allRules.size());
-                    return;
-                }
-            }
-            
-            // Если не нашли, создаем дефолтные
             System.out.println("Файл grammar.json не найден, использую дефолтные правила");
             createDefaultRules();
             
@@ -161,6 +142,42 @@ public class GrammarService {
             System.err.println("Ошибка загрузки грамматики: " + e.getMessage());
             e.printStackTrace();
             createDefaultRules();
+        }
+    }
+
+    private void loadExercises() {
+        try {
+            // ПРАВИЛЬНЫЙ ПУТЬ: /data/grammar/exercises.json
+            InputStream is = getClass().getResourceAsStream("/data/grammar/exercises.json");
+            
+            if (is == null) {
+                is = getClass().getClassLoader().getResourceAsStream("data/grammar/exercises.json");
+            }
+            
+            if (is != null) {
+                String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                ExercisesWrapper wrapper = gson.fromJson(json, ExercisesWrapper.class);
+                
+                if (wrapper != null && wrapper.getExercises() != null && !wrapper.getExercises().isEmpty()) {
+                    allExercises = convertExercises(wrapper.getExercises());
+                    System.out.println("Загружено упражнений из /data/grammar/exercises.json: " + allExercises.size());
+                    
+                    for (GrammarExercise ex : allExercises) {
+                        System.out.println("  - ID: " + ex.getId() + 
+                                         ", Type: " + ex.getType() + 
+                                         ", Category: " + ex.getCategory());
+                    }
+                    return;
+                }
+            }
+            
+            System.out.println("Файл exercises.json не найден, использую дефолтные упражнения");
+            createDefaultExercises();
+            
+        } catch (Exception e) {
+            System.err.println("Ошибка загрузки упражнений: " + e.getMessage());
+            e.printStackTrace();
+            createDefaultExercises();
         }
     }
     
@@ -184,70 +201,7 @@ public class GrammarService {
         return sb.toString();
     }
     
-    private void loadExercises() {
-        try {
-            // Загружаем из ресурсов /data/grammar/exercises.json
-            InputStream is = getClass().getResourceAsStream("/data/grammar/exercises.json");
-            
-            if (is != null) {
-                String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                ExercisesWrapper wrapper = gson.fromJson(json, ExercisesWrapper.class);
-                
-                if (wrapper != null && wrapper.getExercises() != null && !wrapper.getExercises().isEmpty()) {
-                    allExercises = convertExercises(wrapper.getExercises());
-                    System.out.println("Загружено упражнений из /data/grammar/exercises.json: " + allExercises.size());
-                    
-                    // Выводим список загруженных упражнений для проверки
-                    for (GrammarExercise ex : allExercises) {
-                        String shortQuestion = ex.getQuestion().length() > 40 ? 
-                            ex.getQuestion().substring(0, 40) + "..." : ex.getQuestion();
-                        System.out.println("  - ID: " + ex.getId() + 
-                                         ", Type: " + ex.getType() + 
-                                         ", Category: " + ex.getCategory() +
-                                         ", Q: " + shortQuestion);
-                    }
-                    return;
-                }
-            }
-            
-            // Если не нашли в ресурсах, пробуем в файловой системе
-            java.nio.file.Path exercisesPath = java.nio.file.Paths.get("data", "grammar", "exercises.json");
-            if (java.nio.file.Files.exists(exercisesPath)) {
-                String json = new String(java.nio.file.Files.readAllBytes(exercisesPath), StandardCharsets.UTF_8);
-                ExercisesWrapper wrapper = gson.fromJson(json, ExercisesWrapper.class);
-                
-                if (wrapper != null && wrapper.getExercises() != null && !wrapper.getExercises().isEmpty()) {
-                    allExercises = convertExercises(wrapper.getExercises());
-                    System.out.println("Загружено упражнений из data/grammar/exercises.json: " + allExercises.size());
-                    return;
-                }
-            }
-            
-            // Если не нашли, создаем дефолтные
-            System.out.println("Файл exercises.json не найден, использую дефолтные упражнения");
-            createDefaultExercises();
-            
-        } catch (Exception e) {
-            System.err.println("Ошибка загрузки упражнений: " + e.getMessage());
-            e.printStackTrace();
-            createDefaultExercises();
-        }
-        
-        if (allExercises != null) {
-            long multipleChoiceCount = allExercises.stream()
-                .filter(e -> "multiple_choice".equals(e.getType())).count();
-            long typingCount = allExercises.stream()
-                .filter(e -> "typing".equals(e.getType())).count();
-            long matchingCount = allExercises.stream()
-                .filter(e -> "matching".equals(e.getType())).count();
-            
-            System.out.println("=== Статистика по типам упражнений ===");
-            System.out.println("Multiple Choice: " + multipleChoiceCount);
-            System.out.println("Typing: " + typingCount);
-            System.out.println("Matching: " + matchingCount);
-            System.out.println("=====================================");
-        }
-    }
+    
     
     private List<GrammarExercise> convertExercises(List<ExerciseJson> exercises) {
         List<GrammarExercise> converted = new ArrayList<>();

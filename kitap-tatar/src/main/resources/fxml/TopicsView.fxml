@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox alignment="TOP_CENTER" prefHeight="700" prefWidth="1000" spacing="20" styleClass="root" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21" fx:controller="com.tatar.learn.controllers.TopicsController">
+    
+    <padding>
+        <Insets bottom="20" left="20" right="20" top="20" />
+    </padding>
+    
+    <!-- Заголовок -->
+    <Label styleClass="main-title" text="📚 Уроки" />
+    <Label styleClass="main-subtitle" text="Выберите тему для изучения" />
+    
+    <!-- Общий прогресс -->
+    <HBox alignment="CENTER" spacing="20">
+        <Label fx:id="totalProgressLabel" styleClass="level-label" text="🏆 Общий прогресс" />
+        <ProgressBar fx:id="totalProgressBar" prefWidth="300" progress="0" />
+        <Label fx:id="totalPercentLabel" styleClass="level-info" text="0%" />
+    </HBox>
+    
+    <ScrollPane fitToWidth="true" styleClass="topics-scroll" VBox.vgrow="ALWAYS">
+        <GridPane fx:id="topicsGrid" alignment="CENTER" hgap="20" vgap="20">
+            <padding>
+                <Insets bottom="20" left="20" right="20" top="20" />
+            </padding>
+        </GridPane>
+    </ScrollPane>
+    
+    <HBox alignment="CENTER">
+        <Button fx:id="backButton" styleClass="action-button" text="← Назад" />
+    </HBox>
+    
+</VBox>

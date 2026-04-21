@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+
+<VBox alignment="TOP_CENTER" prefHeight="700" prefWidth="1000" spacing="15" styleClass="root" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21" fx:controller="com.tatar.learn.controllers.TopicLearnController">
+    
+    <padding>
+        <Insets bottom="15" left="20" right="20" top="15" />
+    </padding>
+    
+    <!-- Заголовок темы -->
+    <HBox alignment="CENTER" spacing="15">
+        <Label fx:id="topicIconLabel" styleClass="lesson-icon" text="📚" />
+        <Label fx:id="topicNameLabel" styleClass="lesson-title" text="Название темы" />
+        <Label fx:id="topicNameTatarLabel" styleClass="lesson-subtitle" text="Тема" />
+    </HBox>
+    
+    <!-- Прогресс бар -->
+    <HBox alignment="CENTER" spacing="20">
+        <Label fx:id="progressLabel" styleClass="lesson-progress-label" text="Прогресс: 0 / 0 слов" />
+        <Label fx:id="queueInfoLabel" styleClass="lesson-queue-info" text="📚 Осталось: 0 слов" />
+    </HBox>
+    
+    <!-- Вкладки -->
+    <TabPane fx:id="lessonTabPane" styleClass="lesson-tab-pane" VBox.vgrow="ALWAYS">
+        
+        <!-- Вкладка 1: СЛОВА -->
+        <Tab text="📖 Слова" closable="false">
+            <VBox spacing="15" styleClass="lesson-words-tab">
+                <padding><Insets top="20" left="20" right="20" bottom="20" /></padding>
+                
+                <!-- Текущее слово -->
+                <VBox fx:id="wordCard" alignment="CENTER" spacing="20" styleClass="lesson-word-card">
+                    <Label fx:id="tatarWordLabel" styleClass="lesson-word-large" text="әти" />
+                    <Label fx:id="russianWordLabel" styleClass="lesson-word-translation" text="папа" />
+                    <Button fx:id="playButton" styleClass="lesson-play-button" text="🔊 Прослушать" />
+                </VBox>
+                
+                <!-- Примеры -->
+                <VBox fx:id="examplesContainer" spacing="10" styleClass="lesson-examples-container">
+                    <Label styleClass="lesson-examples-title" text="📖 Примеры использования" />
+                    <ScrollPane fx:id="examplesScroll" fitToWidth="true" maxHeight="150" styleClass="lesson-examples-scroll">
+                        <VBox fx:id="examplesList" spacing="8" styleClass="lesson-examples-list" />
+                    </ScrollPane>
+                </VBox>
+                
+                <!-- Навигация по словам -->
+                <HBox alignment="CENTER" spacing="20">
+                    <Button fx:id="prevWordButton" styleClass="lesson-nav-button" text="◀ Предыдущее" />
+                    <Label fx:id="wordCounterLabel" styleClass="lesson-counter" text="1 / 10" />
+                    <Button fx:id="nextWordButton" styleClass="lesson-nav-button" text="Следующее ▶" />
+                </HBox>
+                
+                <!-- Кнопка отметить выученным -->
+                <Button fx:id="markLearnedButton" styleClass="lesson-learned-button" text="✅ Отметить как выученное" />
+            </VBox>
+        </Tab>
+        
+        <!-- Вкладка 2: ГРАММАТИКА -->
+        <Tab text="📚 Грамматика" closable="false">
+            <ScrollPane fitToWidth="true" styleClass="lesson-grammar-scroll">
+                <VBox spacing="20" styleClass="lesson-grammar-tab">
+                    <padding><Insets top="20" left="25" right="25" bottom="20" /></padding>
+                    
+                    <Label fx:id="grammarTitleLabel" styleClass="lesson-grammar-title" text="Притяжательные окончания" />
+                    <Label fx:id="grammarTitleTatarLabel" styleClass="lesson-grammar-subtitle" text="Тартым кушымчалары" />
+                    
+                    <VBox spacing="10" styleClass="lesson-grammar-section">
+                        <Label styleClass="lesson-grammar-section-title" text="📖 Объяснение" />
+                        <Label fx:id="grammarExplanationLabel" styleClass="lesson-grammar-text" wrapText="true" text="..." />
+                    </VBox>
+                    
+                    <VBox spacing="10" styleClass="lesson-grammar-section">
+                        <Label styleClass="lesson-grammar-section-title" text="📝 Примеры" />
+                        <Label fx:id="grammarExamplesLabel" styleClass="lesson-grammar-text" wrapText="true" text="..." />
+                    </VBox>
+                </VBox>
+            </ScrollPane>
+        </Tab>
+        
+        <!-- Вкладка 3: ТЕСТ -->
+        <Tab text="✍️ Тест" closable="false">
+            <VBox spacing="20" styleClass="lesson-test-tab">
+                <padding><Insets top="20" left="25" right="25" bottom="20" /></padding>
+                
+                <Label fx:id="testQuestionLabel" styleClass="lesson-test-question" text="Как будет 'папа' на татарском?" />
+                
+                <VBox fx:id="testOptionsContainer" spacing="10" alignment="CENTER">
+                    <!-- Кнопки вариантов будут добавляться динамически -->
+                </VBox>
+                
+                <Label fx:id="testFeedbackLabel" styleClass="lesson-test-feedback" text="" />
+                
+                <HBox alignment="CENTER" spacing="20">
+                    <Button fx:id="testNextButton" styleClass="lesson-test-next-button" text="Следующий вопрос ▶" visible="false" />
+                    <Button fx:id="testCompleteButton" styleClass="lesson-complete-button" text="🏆 Завершить урок" visible="false" />
+                </HBox>
+            </VBox>
+        </Tab>
+    </TabPane>
+    
+    <!-- Кнопка выхода -->
+    <HBox alignment="CENTER">
+        <Button fx:id="exitButton" styleClass="lesson-exit-button" text="← Выйти из урока" />
+    </HBox>
+    
+    <HBox alignment="CENTER_RIGHT">
+        <Label fx:id="voiceStatusLabel" styleClass="voice-status" />
+    </HBox>
+</VBox>

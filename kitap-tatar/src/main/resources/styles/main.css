@@ -65,11 +65,28 @@
     -fx-min-height: 70;
 }
 
+/* Кнопка Уроки - основной акцент */
+.lessons-button {
+    -fx-background-color: #7f6bb3;  /* самый темный фиолетовый из переменных */
+}
+.lessons-button:hover {
+    -fx-background-color: #6b559e;  /* еще темнее при наведении */
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+/* Кнопка Карточки */
+.cards-button {
+    -fx-background-color: #b5a3df;
+}
+.cards-button:hover {
+    -fx-background-color: #9b87c9;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
 .dictionary-button { -fx-background-color: #9b87c9; }
 .dictionary-button:hover { -fx-background-color: #7f6bb3; }
-
-.learn-button { -fx-background-color: #b5a3df; }
-.learn-button:hover { -fx-background-color: #9b87c9; }
 
 .test-button { -fx-background-color: #c9bae8; }
 .test-button:hover { -fx-background-color: #b5a3df; }
@@ -107,8 +124,413 @@
 }
 
 /* ==========================================================================
+   TOPIC CARDS
+   ========================================================================== */
+.topic-card {
+    -fx-background-color: white;
+    -fx-background-radius: 20;
+    -fx-padding: 20;
+    -fx-min-width: 280;
+    -fx-min-height: 260;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 3);
+    -fx-border-color: #e5d9f5;
+    -fx-border-radius: 20;
+    -fx-border-width: 2;
+}
+
+.topic-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(155, 135, 201, 0.3), 15, 0, 0, 5);
+    -fx-translate-y: -2;
+}
+
+.topic-card-locked {
+    -fx-background-color: #f5f5f5;
+    -fx-opacity: 0.7;
+}
+
+.topic-card-completed {
+    -fx-border-color: #7cb87a;
+    -fx-border-width: 3;
+    -fx-background-color: #f0faf0;
+}
+
+.topics-scroll {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+}
+
+.topics-scroll .viewport {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+}
+
+.level-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #9b87c9;
+}
+
+.level-info {
+    -fx-font-size: 14px;
+    -fx-text-fill: #7f6bb3;
+}
+
+.queue-info {
+    -fx-font-size: 12px;
+    -fx-text-fill: #7f6bb3;
+    -fx-background-color: #f0eaff;
+    -fx-padding: 4 10;
+    -fx-background-radius: 15;
+}
+
+/* ==========================================================================
+   TOPIC LESSON STYLES
+   ========================================================================== */
+.topic-icon {
+    -fx-font-size: 32px;
+}
+
+.topic-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a3859;
+}
+
+.topic-subtitle {
+    -fx-font-size: 18px;
+    -fx-text-fill: #9b87c9;
+    -fx-font-style: italic;
+}
+
+.grammar-button {
+    -fx-background-color: #e5d9f5;
+    -fx-text-fill: #7f6bb3;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 20;
+    -fx-background-radius: 20;
+    -fx-cursor: hand;
+    -fx-min-width: 200;
+}
+
+.grammar-button:hover {
+    -fx-background-color: #d4c4e8;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+/* ==========================================================================
+   LESSON STYLES - УРОКИ
+   ========================================================================== */
+
+/* Заголовок урока */
+.lesson-icon {
+    -fx-font-size: 48px;
+}
+
+.lesson-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a3859;
+}
+
+.lesson-subtitle {
+    -fx-font-size: 20px;
+    -fx-text-fill: #9b87c9;
+    -fx-font-style: italic;
+}
+
+.lesson-progress-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #4a3859;
+    -fx-background-color: #e5d9f5;
+    -fx-padding: 5 15;
+    -fx-background-radius: 20;
+}
+
+.lesson-queue-info {
+    -fx-font-size: 12px;
+    -fx-text-fill: #7f6bb3;
+    -fx-background-color: #f0eaff;
+    -fx-padding: 5 15;
+    -fx-background-radius: 20;
+}
+
+/* Вкладки */
+.lesson-tab-pane .tab-header-area {
+    -fx-padding: 10 0 0 0;
+}
+
+.lesson-tab-pane .tab {
+    -fx-background-color: #e5d9f5;
+    -fx-background-radius: 15 15 0 0;
+    -fx-padding: 10 25;
+    -fx-cursor: hand;
+}
+
+.lesson-tab-pane .tab:selected {
+    -fx-background-color: #9b87c9;
+}
+
+.lesson-tab-pane .tab .tab-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a3859;
+}
+
+.lesson-tab-pane .tab:selected .tab-label {
+    -fx-text-fill: white;
+}
+
+/* Вкладка СЛОВА */
+.lesson-words-tab {
+    -fx-background-color: #faf5ff;
+    -fx-background-radius: 0 0 15 15;
+}
+
+.lesson-word-card {
+    -fx-background-color: white;
+    -fx-background-radius: 25;
+    -fx-padding: 30;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 15, 0, 0, 5);
+    -fx-border-color: #b5a3df;
+    -fx-border-radius: 25;
+    -fx-border-width: 2;
+    -fx-max-width: 500;
+}
+
+.lesson-word-large {
+    -fx-font-size: 56px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #7f6bb3;
+}
+
+.lesson-word-translation {
+    -fx-font-size: 24px;
+    -fx-text-fill: #4a3859;
+    -fx-font-style: italic;
+}
+
+.lesson-play-button {
+    -fx-background-color: #e5d9f5;
+    -fx-text-fill: #7f6bb3;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 20;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+}
+
+.lesson-play-button:hover {
+    -fx-background-color: #d4c4e8;
+    -fx-scale-x: 1.02;
+    -fx-scale-y: 1.02;
+}
+
+/* Примеры */
+.lesson-examples-container {
+    -fx-background-color: #f0eaff;
+    -fx-background-radius: 15;
+    -fx-padding: 15;
+}
+
+.lesson-examples-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #9b87c9;
+}
+
+.lesson-examples-scroll {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+}
+
+.lesson-examples-list {
+    -fx-spacing: 8;
+}
+
+.lesson-example-item {
+    -fx-background-color: white;
+    -fx-background-radius: 10;
+    -fx-padding: 10;
+    -fx-border-color: #e5d9f5;
+    -fx-border-radius: 10;
+}
+
+.lesson-example-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: #4a3859;
+}
+
+/* Навигация */
+.lesson-nav-button {
+    -fx-background-color: #b5a3df;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 20;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+}
+
+.lesson-nav-button:hover {
+    -fx-background-color: #9b87c9;
+}
+
+.lesson-counter {
+    -fx-font-size: 14px;
+    -fx-text-fill: #7f6bb3;
+    -fx-font-weight: bold;
+}
+
+.lesson-learned-button {
+    -fx-background-color: #7cb87a;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 25;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+    -fx-max-width: 250;
+}
+
+.lesson-learned-button:hover {
+    -fx-background-color: #5f9e5d;
+}
+
+/* Вкладка ГРАММАТИКА */
+.lesson-grammar-scroll {
+    -fx-background: transparent;
+    -fx-background-color: transparent;
+}
+
+.lesson-grammar-tab {
+    -fx-background-color: #faf5ff;
+    -fx-background-radius: 0 0 15 15;
+}
+
+.lesson-grammar-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a3859;
+}
+
+.lesson-grammar-subtitle {
+    -fx-font-size: 16px;
+    -fx-text-fill: #9b87c9;
+    -fx-font-style: italic;
+}
+
+.lesson-grammar-section {
+    -fx-background-color: white;
+    -fx-background-radius: 15;
+    -fx-padding: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, 0, 2);
+}
+
+.lesson-grammar-section-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #7f6bb3;
+}
+
+.lesson-grammar-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: #4a3859;
+    -fx-line-spacing: 5;
+}
+
+/* Вкладка ТЕСТ */
+.lesson-test-tab {
+    -fx-background-color: #faf5ff;
+    -fx-background-radius: 0 0 15 15;
+    -fx-alignment: center;
+}
+
+.lesson-test-question {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4a3859;
+    -fx-background-color: white;
+    -fx-padding: 20;
+    -fx-background-radius: 15;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 5, 0, 0, 2);
+}
+
+.lesson-test-option {
+    -fx-background-color: #e5d9f5;
+    -fx-text-fill: #4a3859;
+    -fx-font-size: 16px;
+    -fx-padding: 12 25;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+    -fx-min-width: 300;
+}
+
+.lesson-test-option:hover {
+    -fx-background-color: #d4c4e8;
+}
+
+.lesson-test-option-correct {
+    -fx-background-color: #7cb87a;
+    -fx-text-fill: white;
+}
+
+.lesson-test-option-wrong {
+    -fx-background-color: #e8a898;
+    -fx-text-fill: white;
+}
+
+.lesson-test-feedback {
+    -fx-font-size: 14px;
+    -fx-padding: 10;
+}
+
+.lesson-test-next-button {
+    -fx-background-color: #9b87c9;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 25;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+}
+
+.lesson-complete-button {
+    -fx-background-color: #7cb87a;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 25;
+    -fx-background-radius: 25;
+    -fx-cursor: hand;
+}
+
+.lesson-complete-button:hover {
+    -fx-background-color: #5f9e5d;
+}
+
+.lesson-exit-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #9b87c9;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-padding: 10;
+}
+
+.lesson-exit-button:hover {
+    -fx-text-fill: #7f6bb3;
+    -fx-underline: true;
+}
+
+/* ==========================================================================
    FLASHCARDS
    ========================================================================== */
+   .word-card-front, .word-card-back {
+       -fx-backface-visibility: hidden;
+       -fx-effect: null;
+   }
 .word-card-front, .word-card-back {
     -fx-background-color: white;
     -fx-background-radius: 30;

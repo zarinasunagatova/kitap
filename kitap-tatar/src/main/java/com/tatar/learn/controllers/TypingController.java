@@ -2,6 +2,8 @@ package com.tatar.learn.controllers;
 
 import com.tatar.learn.models.GrammarExercise;
 import com.tatar.learn.services.GrammarService;
+import com.tatar.learn.services.TopicsService;
+
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -38,19 +40,28 @@ public class TypingController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         try {
             grammarService = GrammarService.getInstance();
+            TopicsService topicsService = TopicsService.getInstance();
             
-            // Получаем валидные упражнения нужных типов
-            List<GrammarExercise> validTyping = grammarService.getExercisesByType(EXERCISE_TYPE);
+            // ===== НОВОЕ: получаем ТОЛЬКО упражнения из пройденных тем =====
+            Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
+            System.out.println("TypingController - пройденные темы: " + completedTopics);
             
-            // Фильтруем только валидные (хотя сервис уже должен отфильтровать)
+            // Получаем все typing упражнения
+            List<GrammarExercise> allTyping = grammarService.getExercisesByType(EXERCISE_TYPE);
+            
+            // Фильтруем по пройденным темам
             currentExercises = new ArrayList<>();
-            currentExercises.addAll(validTyping);
+            for (GrammarExercise ex : allTyping) {
+                String category = ex.getCategory();
+                if (category != null && completedTopics.contains(category)) {
+                    currentExercises.add(ex);
+                }
+            }
+            // ===== КОНЕЦ НОВОГО =====
             
-            // Проверяем, есть ли хоть какие-то упражнения
+            // Проверяем, есть ли упражнения
             if (currentExercises.isEmpty()) {
-                showAlert("Нет доступных упражнений", 
-                    "Нет корректных упражнений для отображения.\n" +
-                    "Проверьте файл exercises.json на наличие ошибок.");
+                showNoExercisesMessage();
                 return;
             }
             
@@ -62,21 +73,58 @@ public class TypingController implements Initializable {
             updateProgress();
             
         } catch (Exception e) {
-            System.err.println("Error initializing MultipleChoiceController: " + e.getMessage());
+            System.err.println("Error initializing TypingController: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
+    /**
+     * Показывает сообщение, когда нет доступных упражнений
+     */
+    private void showNoExercisesMessage() {
+        if (questionLabel != null) {
+            questionLabel.setText("📭 Нет доступных упражнений для ввода");
+            questionLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 18px;");
+        }
+        
+        if (answerField != null) {
+            answerField.setDisable(true);
+            answerField.setPromptText("Пройдите уроки, чтобы открыть упражнения");
+        }
+        
+        if (feedbackLabel != null) {
+            feedbackLabel.setText("Зайдите в раздел «Уроки» и изучите темы, чтобы открыть упражнения!");
+            feedbackLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 14px; -fx-font-style: italic;");
+        }
+        
+        if (checkButton != null) checkButton.setDisable(true);
+        if (nextButton != null) nextButton.setDisable(true);
+        if (categoryCombo != null) categoryCombo.setDisable(true);
+        if (hintLabel != null) hintLabel.setText("");
+        if (categoryLabel != null) categoryLabel.setText("");
+    }
     
     private void setupCategoryFilter() {
         if (categoryCombo != null) {
             categoryCombo.getItems().add("Все категории");
             
-            // ИСПРАВЛЕНО: используем ТОЛЬКО категории упражнений
-            Set<String> categories = grammarService.getExerciseCategories();
-            if (categories != null && !categories.isEmpty()) {
-                categoryCombo.getItems().addAll(categories);
+            // ===== ИСПРАВЛЕНО: только категории из ПРОЙДЕННЫХ тем =====
+            TopicsService topicsService = TopicsService.getInstance();
+            Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
+            
+            // Добавляем только те категории, которые есть в пройденных темах
+            Set<String> availableCategories = new HashSet<>();
+            for (GrammarExercise ex : currentExercises) {
+                String category = ex.getCategory();
+                if (category != null && completedTopics.contains(category)) {
+                    availableCategories.add(category);
+                }
             }
+            
+            if (!availableCategories.isEmpty()) {
+                categoryCombo.getItems().addAll(availableCategories);
+            }
+            // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
             
             categoryCombo.getSelectionModel().selectFirst();
             categoryCombo.setOnAction(e -> filterByCategory());
@@ -317,11 +365,13 @@ public class TypingController implements Initializable {
     }
     
     private String normalizeText(String text) {
+        if (text == null || text.isEmpty()) return "";  // ← ДОБАВИТЬ
+        
         String normalized = text.trim().toLowerCase();
         normalized = normalized.replaceAll("[\\p{Punct}]", "");
         normalized = normalized.replaceAll("\\s+", " ");
         normalized = Normalizer.normalize(normalized, Normalizer.Form.NFD);
-        normalized = normalized.replaceAll("\\p{M}", ""); // Убираем диакритические знаки
+        normalized = normalized.replaceAll("\\p{M}", "");
         return normalized.trim();
     }
     

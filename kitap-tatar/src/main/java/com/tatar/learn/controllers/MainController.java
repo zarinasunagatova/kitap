@@ -9,7 +9,10 @@ import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
+
+import java.io.InputStream;
 import java.net.URL;
 import java.util.ResourceBundle;
 import javafx.scene.layout.VBox;
@@ -17,18 +20,18 @@ import javafx.geometry.Insets;
 
 public class MainController implements Initializable {
     
-    @FXML private Button dictionaryButton;
-    @FXML private Button learnButton;
-    @FXML private Button testButton;
-    @FXML private Button cultureButton;
+    @FXML private Button lessonsButton;      // Уроки
+    @FXML private Button dictionaryButton;    // Словарь
+    @FXML private Button cardsButton;         // Карточки
+    @FXML private Button testButton;          // Тесты
+    @FXML private Button cultureButton;       // Культура
     @FXML private Label statusLabel;
     @FXML private Label voiceStatusLabel;
-    @FXML private Label dbStatusLabel;  // ← ДОБАВИТЬ В FXML (или использовать statusLabel)
+    @FXML private Label dbStatusLabel;
     
     private static final int WINDOW_WIDTH = 1000;
     private static final int WINDOW_HEIGHT = 700;
     
-    // Флаг для отслеживания состояния БД
     private boolean databaseAvailable = false;
     
     @Override
@@ -36,17 +39,146 @@ public class MainController implements Initializable {
         statusLabel.setText("Рәхим итегез! / Добро пожаловать!");
         
         updateVoiceStatus();
-        checkDatabaseStatus();  // ← ДОБАВИТЬ ПРОВЕРКУ БД
+        checkDatabaseStatus();
         
+        lessonsButton.setOnAction(e -> openLessons());
         dictionaryButton.setOnAction(e -> openDictionary());
-        learnButton.setOnAction(e -> openLearn());
+        cardsButton.setOnAction(e -> openCards());
         testButton.setOnAction(e -> openTest());
         cultureButton.setOnAction(e -> openCultureSection());
     }
     
     /**
-     * Проверяет состояние базы данных при запуске
+     * Открывает раздел УРОКИ (изучение новых тем)
      */
+ // MainController.java
+    private void openLessons() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/TopicsView.fxml"));
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.setTitle("📚 Уроки - Выберите тему");
+            stage.setScene(new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT));
+            loadCss(stage.getScene());
+            setStageIcon(stage);
+            stage.show();
+            
+            // НЕ ЗАКРЫВАЕМ ГЛАВНОЕ ОКНО!
+            // Просто показываем новое поверх
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Открывает СЛОВАРЬ (только слова из пройденных тем)
+     */
+    private void openDictionary() {
+        if (!ensureDatabaseAvailable("словарь")) {
+            return;
+        }
+        
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/DictionaryView.fxml"));
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.setTitle("Сүзлек / Словарь");
+            
+            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+            loadCss(scene);
+            setStageIcon(stage);
+            stage.setScene(scene);
+            stage.show();
+            statusLabel.setText("✅ Словарь открыт");
+        } catch (Exception e) {
+            e.printStackTrace();
+            statusLabel.setText("❌ Ошибка открытия словаря");
+            showErrorAlert("Ошибка", "Не удалось открыть словарь: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Открывает КАРТОЧКИ (повторение слов по SM-2)
+     */
+    private void openCards() {
+        if (!ensureDatabaseAvailable("карточки")) {
+            return;
+        }
+        
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LearnView.fxml"));
+            Parent root = loader.load();
+            
+            LearnController learnController = loader.getController();
+            learnController.setMode("cards"); // Режим карточек
+            
+            Stage stage = new Stage();
+            stage.setTitle("🃏 Карточки - Повторение слов");
+            
+            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+            loadCss(scene);
+            setStageIcon(stage);
+            stage.setScene(scene);
+            stage.show();
+            statusLabel.setText("✅ Карточки открыты");
+        } catch (Exception e) {
+            e.printStackTrace();
+            statusLabel.setText("❌ Ошибка открытия карточек");
+            showErrorAlert("Ошибка", "Не удалось открыть карточки: " + e.getMessage());
+        }
+    }
+    
+    private void openTest() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/TestView.fxml"));
+            Parent root = loader.load();
+            Stage stage = new Stage();
+            stage.setTitle("Тесты и упражнения / Сынау һәм күнегүләр");
+            
+            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
+            loadCss(scene);
+            setStageIcon(stage);
+            stage.setScene(scene);
+            stage.show();
+            statusLabel.setText("✅ Тесты открыты");
+        } catch (Exception e) {
+            e.printStackTrace();
+            statusLabel.setText("❌ Ошибка открытия тестов");
+            showErrorAlert("Ошибка", "Не удалось открыть тесты: " + e.getMessage());
+        }
+    }
+    
+    private void openCultureSection() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/CultureView.fxml"));
+            Parent root = loader.load();
+            
+            Stage cultureStage = new Stage();
+            cultureStage.setTitle("Китап - Татарская культура");
+            cultureStage.setScene(new Scene(root, 1000, 700));
+            setStageIcon(cultureStage);
+            // Безопасная загрузка CSS
+            try {
+                URL cssUrl = getClass().getResource("/styles/main.css");
+                if (cssUrl != null) {
+                    cultureStage.getScene().getStylesheets().add(cssUrl.toExternalForm());
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ CSS не загружен для раздела культуры: " + e.getMessage());
+            }
+            
+            cultureStage.initModality(javafx.stage.Modality.NONE);
+            cultureStage.show();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            showErrorAlert("Ошибка", "Не удалось открыть раздел культуры: " + e.getMessage());
+        }
+    }
+    
+    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
+    
     private void checkDatabaseStatus() {
         try {
             DatabaseService dbService = DatabaseService.getInstance();
@@ -78,84 +210,15 @@ public class MainController implements Initializable {
         }
     }
     
-    /**
-     * Показывает предупреждение, если БД работает с проблемами
-     */
-    private void showDatabaseWarning() {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Внимание");
-        alert.setHeaderText("База данных работает с проблемами");
-        alert.setContentText(
-            "Некоторые функции могут работать некорректно.\n\n" +
-            "Рекомендуется перезапустить приложение.\n\n" +
-            "Если проблема повторяется, проверьте:\n" +
-            "• Права на запись в папку пользователя\n" +
-            "• Наличие свободного места на диске"
-        );
-        alert.showAndWait();
-    }
-    
-    /**
-     * Показывает критическую ошибку БД
-     */
-    private void showDatabaseErrorDialog(String errorMessage) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Критическая ошибка");
-        alert.setHeaderText("Не удалось подключиться к базе данных");
-        alert.setContentText(
-            "Приложение не может работать без базы данных.\n\n" +
-            "Ошибка: " + errorMessage + "\n\n" +
-            "Попробуйте:\n" +
-            "1. Перезапустить приложение\n" +
-            "2. Проверить права на запись в папку пользователя\n" +
-            "3. Удалить файл kitap.db и перезапустить приложение"
-        );
-        
-        ButtonType retryButton = new ButtonType("Повторить", ButtonBar.ButtonData.OK_DONE);
-        ButtonType exitButton = new ButtonType("Выйти", ButtonBar.ButtonData.CANCEL_CLOSE);
-        
-        alert.getButtonTypes().setAll(retryButton, exitButton);
-        
-        alert.showAndWait().ifPresent(response -> {
-            if (response == retryButton) {
-                checkDatabaseStatus();  // Повторяем проверку
-            } else {
-                Platform.exit();  // Выходим из приложения
-            }
-        });
-    }
-    
-    /**
-     * Проверяет, доступна ли БД перед открытием окна
-     */
     private boolean ensureDatabaseAvailable(String featureName) {
         if (!databaseAvailable) {
             showErrorAlert(
                 "База данных недоступна", 
                 "Невозможно открыть " + featureName + ".\n\n" +
-                "Пожалуйста, перезапустите приложение.\n" +
-                "Если проблема повторяется, проверьте установку."
+                "Пожалуйста, перезапустите приложение."
             );
             return false;
         }
-        
-        // Дополнительная проверка на лету
-        try {
-            DatabaseService dbService = DatabaseService.getInstance();
-            if (!dbService.isHealthy()) {
-                databaseAvailable = false;
-                showErrorAlert(
-                    "База данных недоступна",
-                    "Соединение с базой данных потеряно.\nПожалуйста, перезапустите приложение."
-                );
-                return false;
-            }
-        } catch (Exception e) {
-            databaseAvailable = false;
-            showErrorAlert("Ошибка базы данных", e.getMessage());
-            return false;
-        }
-        
         return true;
     }
     
@@ -166,13 +229,10 @@ public class MainController implements Initializable {
         if (tts.isAvailable()) {
             voiceStatusLabel.setStyle("-fx-text-fill: #2c7a4c; -fx-font-size: 10px; -fx-font-style: italic;");
             voiceStatusLabel.setText("✅ " + status);
-            voiceStatusLabel.setOnMouseClicked(null);
         } else {
             voiceStatusLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 10px; -fx-font-style: italic;");
             voiceStatusLabel.setText("⚠️ " + status);
             voiceStatusLabel.setOnMouseClicked(e -> showTTSHelp());
-            Tooltip tooltip = new Tooltip("Нажмите для инструкции по установке");
-            Tooltip.install(voiceStatusLabel, tooltip);
         }
     }
     
@@ -213,112 +273,48 @@ public class MainController implements Initializable {
         updateVoiceStatus();
     }
     
-    // ========== ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ ЗАГРУЗКИ CSS ==========
     private void loadCss(Scene scene) {
         try {
             URL cssUrl = getClass().getResource("/styles/main.css");
             if (cssUrl != null) {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
-                System.out.println("✅ CSS загружен для окна: " + scene);
+                System.out.println("✅ CSS загружен");
             } else {
-                System.err.println("❌ CSS не найден");
+                System.err.println("⚠️ CSS не найден, приложение продолжит работу без стилей");
+                // НЕ ПАДАЕМ — просто логируем предупреждение
             }
         } catch (Exception e) {
-            System.err.println("❌ Ошибка загрузки CSS: " + e.getMessage());
+            System.err.println("⚠️ Ошибка загрузки CSS: " + e.getMessage());
+            // НЕ ПАДАЕМ — приложение работает без CSS
         }
     }
-    // ============================================================
     
-    private void openDictionary() {
-        // ← ДОБАВИТЬ ПРОВЕРКУ БД
-        if (!ensureDatabaseAvailable("словарь")) {
-            return;
-        }
+    private void showDatabaseWarning() {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Внимание");
+        alert.setHeaderText("База данных работает с проблемами");
+        alert.setContentText("Некоторые функции могут работать некорректно.\nРекомендуется перезапустить приложение.");
+        alert.showAndWait();
+    }
+    
+    private void showDatabaseErrorDialog(String errorMessage) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Критическая ошибка");
+        alert.setHeaderText("Не удалось подключиться к базе данных");
+        alert.setContentText("Ошибка: " + errorMessage + "\n\nПопробуйте перезапустить приложение.");
         
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/DictionaryView.fxml"));
-            Parent root = loader.load();
-            Stage stage = new Stage();
-            stage.setTitle("Сүзлек / Словарь");
-            
-            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
-            loadCss(scene);
-            
-            stage.setScene(scene);
-            stage.show();
-            statusLabel.setText("✅ Словарь открыт");
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("❌ Ошибка открытия словаря");
-            showErrorAlert("Ошибка", "Не удалось открыть словарь: " + e.getMessage());
-        }
-    }
-
-    private void openLearn() {
-        // ← ДОБАВИТЬ ПРОВЕРКУ БД
-        if (!ensureDatabaseAvailable("режим обучения")) {
-            return;
-        }
+        ButtonType retryButton = new ButtonType("Повторить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType exitButton = new ButtonType("Выйти", ButtonBar.ButtonData.CANCEL_CLOSE);
         
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/LearnView.fxml"));
-            Parent root = loader.load();
-            Stage stage = new Stage();
-            stage.setTitle("Өйрән / Изучение");
-            
-            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
-            loadCss(scene);
-            
-            stage.setScene(scene);
-            stage.show();
-            statusLabel.setText("✅ Режим обучения открыт");
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("❌ Ошибка открытия обучения");
-            showErrorAlert("Ошибка", "Не удалось открыть обучение: " + e.getMessage());
-        }
-    }
-    
-    private void openTest() {
-        // Тесты НЕ зависят от DatabaseService (используют GrammarService)
-        // Поэтому проверку БД можно НЕ делать
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/TestView.fxml"));
-            Parent root = loader.load();
-            Stage stage = new Stage();
-            stage.setTitle("Тесты и упражнения / Сынау һәм күнегүләр");
-            
-            Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
-            loadCss(scene);
-            
-            stage.setScene(scene);
-            stage.show();
-            statusLabel.setText("✅ Тесты открыты");
-        } catch (Exception e) {
-            e.printStackTrace();
-            statusLabel.setText("❌ Ошибка открытия тестов");
-            showErrorAlert("Ошибка", "Не удалось открыть тесты: " + e.getMessage());
-        }
-    }
-    
-    private void openCultureSection() {
-        // Культура НЕ зависит от DatabaseService
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/CultureView.fxml"));
-            Parent root = loader.load();
-            
-            Stage cultureStage = new Stage();
-            cultureStage.setTitle("Китап - Татарская культура");
-            cultureStage.setScene(new Scene(root, 1000, 700));
-            cultureStage.getScene().getStylesheets().add(getClass().getResource("/styles/main.css").toExternalForm());
-            
-            cultureStage.initModality(javafx.stage.Modality.NONE);
-            cultureStage.show();
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            showErrorAlert("Ошибка", "Не удалось открыть раздел культуры: " + e.getMessage());
-        }
+        alert.getButtonTypes().setAll(retryButton, exitButton);
+        
+        alert.showAndWait().ifPresent(response -> {
+            if (response == retryButton) {
+                checkDatabaseStatus();
+            } else {
+                Platform.exit();
+            }
+        });
     }
     
     private void showErrorAlert(String header, String content) {
@@ -331,5 +327,56 @@ public class MainController implements Initializable {
     
     public void refreshVoiceStatus() {
         updateVoiceStatus();
+    }
+    
+    /**
+     * Устанавливает иконку для окна (Stage)
+     */
+    private void setStageIcon(Stage stage) {
+        try {
+            URL iconUrl = getClass().getResource("/images/kitap.png");
+            if (iconUrl == null) {
+                iconUrl = getClass().getClassLoader().getResource("images/kitap.png");
+            }
+            if (iconUrl != null) {
+                Image icon = new Image(iconUrl.openStream());
+                stage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Icon not loaded for stage: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Безопасная загрузка иконки для диалоговых окон
+     */
+    private Image loadDialogIcon() {
+        try {
+            InputStream is = getClass().getResourceAsStream("/images/kitap.png");
+            if (is == null) {
+                is = getClass().getClassLoader().getResourceAsStream("images/kitap.png");
+            }
+            if (is != null) {
+                return new Image(is);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось загрузить иконку для диалога: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Устанавливает иконку для Alert диалога
+     */
+    private void setAlertIcon(Alert alert) {
+        try {
+            Image icon = loadDialogIcon();
+            if (icon != null) {
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось установить иконку для Alert: " + e.getMessage());
+        }
     }
 }

@@ -2,6 +2,8 @@ package com.tatar.learn.controllers;
 
 import com.tatar.learn.models.GrammarExercise;
 import com.tatar.learn.services.GrammarService;
+import com.tatar.learn.services.TopicsService;
+import com.tatar.learn.models.Topic;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -61,21 +63,34 @@ public class MultipleChoiceController implements Initializable {
     public void initialize(URL location, ResourceBundle resources) {
         try {
             grammarService = GrammarService.getInstance();
+            TopicsService topicsService = TopicsService.getInstance();
             
-            // Получаем валидные упражнения нужных типов
-            List<GrammarExercise> validMultipleChoice = grammarService.getExercisesByType(MULTIPLE_CHOICE_TYPE);
-            List<GrammarExercise> validMatching = grammarService.getExercisesByType(MATCHING_TYPE);
+            // ===== НОВОЕ: получаем ТОЛЬКО упражнения из пройденных тем =====
+            Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
+            System.out.println("Пройденные темы: " + completedTopics);
             
-            // Фильтруем только валидные (хотя сервис уже должен отфильтровать)
+            // Получаем ВСЕ упражнения
+            List<GrammarExercise> allMultipleChoice = grammarService.getExercisesByType(MULTIPLE_CHOICE_TYPE);
+            List<GrammarExercise> allMatching = grammarService.getExercisesByType(MATCHING_TYPE);
+            
+            // Фильтруем по категориям, которые соответствуют пройденным темам
             currentExercises = new ArrayList<>();
-            currentExercises.addAll(validMultipleChoice);
-            currentExercises.addAll(validMatching);
+            
+            for (GrammarExercise ex : allMultipleChoice) {
+                if (isExerciseUnlocked(ex, completedTopics)) {
+                    currentExercises.add(ex);
+                }
+            }
+            for (GrammarExercise ex : allMatching) {
+                if (isExerciseUnlocked(ex, completedTopics)) {
+                    currentExercises.add(ex);
+                }
+            }
+            // ===== КОНЕЦ НОВОГО =====
             
             // Проверяем, есть ли хоть какие-то упражнения
             if (currentExercises.isEmpty()) {
-                showAlert("Нет доступных упражнений", 
-                    "Нет корректных упражнений для отображения.\n" +
-                    "Проверьте файл exercises.json на наличие ошибок.");
+                showNoExercisesMessage();
                 return;
             }
             
@@ -91,14 +106,25 @@ public class MultipleChoiceController implements Initializable {
     }
     
     private void initializeUI() {
-        if (categoryCombo != null) {
+    	if (categoryCombo != null) {
             categoryCombo.getItems().add("Все категории");
             
-            // ИСПРАВЛЕНО: используем ТОЛЬКО категории упражнений
-            Set<String> categories = grammarService.getExerciseCategories();
-            if (categories != null && !categories.isEmpty()) {
-                categoryCombo.getItems().addAll(categories);
+            // ===== ИСПРАВЛЕНО: только категории из ПРОЙДЕННЫХ тем =====
+            TopicsService topicsService = TopicsService.getInstance();
+            Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
+            
+            Set<String> availableCategories = new HashSet<>();
+            for (GrammarExercise ex : currentExercises) {
+                String category = ex.getCategory();
+                if (category != null && completedTopics.contains(category)) {
+                    availableCategories.add(category);
+                }
             }
+            
+            if (!availableCategories.isEmpty()) {
+                categoryCombo.getItems().addAll(availableCategories);
+            }
+            // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
             
             categoryCombo.getSelectionModel().selectFirst();
             categoryCombo.setOnAction(e -> filterByCategory());
@@ -111,6 +137,51 @@ public class MultipleChoiceController implements Initializable {
         if (nextButton != null) nextButton.setOnAction(e -> loadNewQuestion());
         if (checkMatchingButton != null) checkMatchingButton.setOnAction(e -> checkMatchingAnswer());
     }
+    /**
+     * Проверяет, доступно ли упражнение (категория соответствует пройденной теме)
+     */
+    private boolean isExerciseUnlocked(GrammarExercise exercise, Set<String> completedTopics) {
+        String category = exercise.getCategory();
+        if (category == null) return false;
+        
+        // Проверяем, соответствует ли категория упражнения одной из пройденных тем
+        for (String topic : completedTopics) {
+            if (category.equalsIgnoreCase(topic)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Показывает сообщение, когда нет доступных упражнений
+     */
+    private void showNoExercisesMessage() {
+        if (questionLabel != null) {
+            questionLabel.setText("📭 Нет доступных упражнений");
+            questionLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 18px;");
+        }
+        
+        // Скрываем все контролы
+        if (multipleChoiceGrid != null) {
+            multipleChoiceGrid.setVisible(false);
+            multipleChoiceGrid.setManaged(false);
+        }
+        if (matchingContainer != null) {
+            matchingContainer.setVisible(false);
+            matchingContainer.setManaged(false);
+        }
+        
+        // Показываем сообщение в feedback
+        if (feedbackLabel != null) {
+            feedbackLabel.setText("Пройдите уроки, чтобы открыть упражнения!\nЗайдите в раздел «Уроки» и изучите темы.");
+            feedbackLabel.setStyle("-fx-text-fill: #b4654d; -fx-font-size: 16px; -fx-font-style: italic;");
+        }
+        
+        if (nextButton != null) nextButton.setDisable(true);
+        if (categoryCombo != null) categoryCombo.setDisable(true);
+    }
+
     
     private void filterByCategory() {
         try {

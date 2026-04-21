@@ -1,16 +1,21 @@
 package com.tatar.learn.controllers;
 
+import com.tatar.learn.models.Topic;
 import com.tatar.learn.models.Word;
+import com.tatar.learn.services.TopicsService;
 import com.tatar.learn.services.DatabaseService;
 import com.tatar.learn.services.TTSService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.animation.*;
 import javafx.util.Duration;
+
+import java.io.InputStream;
 import java.net.URL;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -24,7 +29,7 @@ public class LearnController implements Initializable {
     @FXML private Label tatarWordLabel;
     @FXML private Label russianWordLabel;
     @FXML private Label progressLabel;
-    @FXML private Label queueInfoLabel;  // НОВЫЙ: информация об очереди обучения
+    @FXML private Label queueInfoLabel; 
     @FXML private VBox cardFront;
     @FXML private VBox cardBack;
     @FXML private Button playButton;
@@ -44,6 +49,8 @@ public class LearnController implements Initializable {
     
     private DatabaseService dbService;
     private TTSService ttsService;
+    private TopicsService topicsService;  // ← ДОБАВИТЬ
+    private Topic currentTopic; 
     private List<Word> allWords;
     private List<Word> dueWords;      // Слова для повторения сегодня
     private List<Word> newWords;      // Новые слова
@@ -53,6 +60,7 @@ public class LearnController implements Initializable {
     private boolean isFlipped = false;
     private boolean databaseAvailable = false;
     private String currentFilterCategory = "Все категории";  
+    private String currentMode = "cards";
     
     // SM-2 константы
     private static final int[] INTERVALS = {0, 1, 3, 7, 14, 30, 60, 120, 180, 365};
@@ -65,6 +73,7 @@ public class LearnController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
+    	topicsService = TopicsService.getInstance();  // ← ДОБАВИТЬ
         // Инициализируем БД с обработкой ошибок
         if (!initDatabase()) {
             showDatabaseErrorAndDisable();
@@ -74,7 +83,12 @@ public class LearnController implements Initializable {
         ttsService = TTSService.getInstance();
         voiceStatusLabel.setText(ttsService.getStatus());
         
-        loadWordsAndBuildQueue();
+     // В зависимости от режима загружаем разные слова
+        if ("topic".equals(currentMode) && currentTopic != null) {
+            loadTopicWords();
+        } else {
+            loadWordsAndBuildQueue();
+        }
         
         if (learningQueue == null || learningQueue.isEmpty()) {
             showAlert("Нет слов", "Добавьте слова в словарь");
@@ -84,10 +98,13 @@ public class LearnController implements Initializable {
         setupCategoryFilter();
         setupButtons();
         showCurrentWord();
-        updateProgress();
         
+      
+        
+        updateProgress();
         currentFilterCategory = "Все категории";
     }
+
     
     private boolean initDatabase() {
 		try {
@@ -143,7 +160,18 @@ public class LearnController implements Initializable {
      * Загружает слова и строит очередь обучения на основе интервалов
      */
     private void loadWordsAndBuildQueue() {
-        allWords = dbService.getAllWords();
+        TopicsService topicsService = TopicsService.getInstance();
+        List<Word> learnedWords = topicsService.getAllLearnedWords();
+        
+        // Фильтруем только слова с корректным ID > 0
+        allWords = new ArrayList<>();
+        for (Word word : learnedWords) {
+            if (word.getId() > 0) {
+                allWords.add(word);
+            } else {
+                System.err.println("⚠️ Слово без ID пропущено: " + word.getTatar());
+            }
+        } 
         
         // Разделяем слова на категории
         dueWords = new ArrayList<>();
@@ -349,32 +377,79 @@ public class LearnController implements Initializable {
         nextButton.setOnMouseClicked(javafx.scene.input.MouseEvent::consume);
     }
     
+   
     private void flipCard() {
-        if (currentWord == null) return;
+        if (currentWord == null || isAnimating) return;
         
+        if (!isFlipped) {
+            // Обновляем содержимое
+            russianWordLabel.setText(currentWord.getRussian());
+            showExamples(currentWord);
+            
+            // Критически важно: принудительно вычисляем размеры
+            cardBack.setVisible(true);
+            cardBack.setManaged(true);
+            
+            // Запрашиваем layout у родителя
+            if (cardBack.getParent() != null) {
+                cardBack.getParent().applyCss();
+                cardBack.getParent().layout();
+            }
+            
+            // Фиксируем размеры после layout
+            double targetWidth = cardBack.getWidth();
+            double targetHeight = cardBack.getHeight();
+            
+            // Убеждаемся, что размеры не нулевые
+            if (targetWidth <= 0 || targetHeight <= 0) {
+                targetWidth = cardFront.getWidth();
+                targetHeight = cardFront.getHeight();
+            }
+            
+            // Применяем фиксированные размеры
+            cardBack.setPrefSize(targetWidth, targetHeight);
+            cardBack.setMinSize(targetWidth, targetHeight);
+            
+            // Скрываем обратно
+            cardBack.setVisible(false);
+            cardBack.setManaged(false);
+        }
+        
+        isAnimating = true;
+        final boolean wasFlipped = isFlipped;
+        
+        // Используем оба узла для плавной анимации
         ScaleTransition scaleOut = new ScaleTransition(Duration.millis(150), 
-            isFlipped ? cardBack : cardFront);
+            wasFlipped ? cardBack : cardFront);
         scaleOut.setToX(0);
         scaleOut.setOnFinished(e -> {
-            isFlipped = !isFlipped;
+            isFlipped = !wasFlipped;
+            
+            // Меняем видимость
             cardFront.setVisible(!isFlipped);
             cardFront.setManaged(!isFlipped);
             cardBack.setVisible(isFlipped);
             cardBack.setManaged(isFlipped);
             
+            // Для обратной стороны сбрасываем масштаб X перед анимацией появления
             if (isFlipped) {
-                russianWordLabel.setText(currentWord.getRussian());
+                cardBack.setScaleX(0);
+            } else {
+                cardFront.setScaleX(0);
             }
             
             ScaleTransition scaleIn = new ScaleTransition(Duration.millis(150), 
                 isFlipped ? cardBack : cardFront);
             scaleIn.setFromX(0);
             scaleIn.setToX(1);
+            scaleIn.setOnFinished(ev -> isAnimating = false);
             scaleIn.play();
         });
-        
         scaleOut.play();
     }
+
+    private boolean isAnimating = false;
+
     
     private void playCurrentWord() {
         if (currentWord == null) return;
@@ -397,10 +472,8 @@ public class LearnController implements Initializable {
         dbService.updateWord(currentWord);
         
         showTemporaryMessage("🔄 Сброс (повторить сегодня)", againButton);
+        moveToNextWord();
         
-        if (!isFlipped) flipCard();
-        
-        // Остаемся на этом же слове для повторения
     }
     
     private void handleHard() {
@@ -455,7 +528,6 @@ public class LearnController implements Initializable {
         learningQueue.poll();
         
         if (learningQueue.isEmpty()) {
-            // Очередь пуста - проверяем, есть ли еще слова для загрузки
             loadWordsAndBuildQueue();
             
             if (learningQueue.isEmpty()) {
@@ -511,12 +583,18 @@ public class LearnController implements Initializable {
         
         showExamples(currentWord);
         
-        isFlipped = false;
-        cardFront.setVisible(true);
-        cardFront.setManaged(true);
-        cardBack.setVisible(false);
-        cardBack.setManaged(false);
-        
+        if (isFlipped) {
+            cardFront.setVisible(false);
+            cardFront.setManaged(false);
+            cardBack.setVisible(true);
+            cardBack.setManaged(true);
+        } else {
+            cardFront.setVisible(true);
+            cardFront.setManaged(true);
+            cardBack.setVisible(false);
+            cardBack.setManaged(false);
+        }
+   
         // Обновляем цвет в зависимости от прогресса
         tatarWordLabel.getStyleClass().removeAll("progress-zero", "progress-low", "progress-medium", "progress-high");
         
@@ -538,6 +616,7 @@ public class LearnController implements Initializable {
         
         if (word.getExamples() != null && !word.getExamples().isEmpty()) {
             examplesScroll.setVisible(true);
+            examplesScroll.setManaged(true);
             
             for (String example : word.getExamples()) {
                 HBox exampleBox = new HBox();
@@ -556,7 +635,6 @@ public class LearnController implements Initializable {
                 examplesList.getChildren().add(exampleBox);
             }
         } else {
-            examplesScroll.setVisible(true);
             Label noExamplesLabel = new Label("Нет примеров для этого слова");
             noExamplesLabel.getStyleClass().add("no-examples-label");
             examplesList.getChildren().add(noExamplesLabel);
@@ -616,7 +694,6 @@ public class LearnController implements Initializable {
             else newCount++;
         }
         
-        // Формируем информацию о категории
         String categoryInfo;
         if (currentFilterCategory == null || currentFilterCategory.equals("Все категории")) {
             categoryInfo = "📚 Категория: Все категории";
@@ -637,18 +714,85 @@ public class LearnController implements Initializable {
             "Продолжайте в том же духе! 💪",
             categoryInfo, learned, inProgress, newCount
         ));
+        
+        // Устанавливаем иконку
+        setAlertIcon(alert);
+        
         alert.showAndWait();
         
-        // Закрываем окно обучения
         Stage stage = (Stage) progressLabel.getScene().getWindow();
         stage.close();
     }
-    
+
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+        setAlertIcon(alert);
         alert.showAndWait();
     }
-}
+
+    // Добавьте методы для иконки:
+    private Image loadDialogIcon() {
+        try {
+            InputStream is = getClass().getResourceAsStream("/images/kitap.png");
+            if (is == null) {
+                is = getClass().getClassLoader().getResourceAsStream("images/kitap.png");
+            }
+            if (is != null) {
+                return new Image(is);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private void setAlertIcon(Alert alert) {
+        try {
+            Image icon = loadDialogIcon();
+            if (icon != null) {
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+        }
+    }
+
+	public void setMode(String mode) {
+	    this.currentMode = mode;
+	    System.out.println("LearnController mode set to: " + mode);
+	}
+
+	public void setTopic(Topic topic) {
+	    this.currentTopic = topic;
+	    this.currentMode = "topic";
+	}
+	
+	/**
+	 * Загружает слова из выбранной темы для изучения
+	 */
+	private void loadTopicWords() {
+	    if (currentTopic == null) {
+	        System.err.println("No topic selected!");
+	        return;
+	    }
+	    
+	    learningQueue = new LinkedList<>();
+	    for (Word word : currentTopic.getWords()) {
+	        learningQueue.add(word);
+	    }
+	    
+	    System.out.println("=== ЗАГРУЖЕНА ТЕМА: " + currentTopic.getName() + " ===");
+	    System.out.println("Слов в теме: " + learningQueue.size());
+	    
+	    // Обновляем статистику
+	    allWords = new ArrayList<>(currentTopic.getWords());
+	    dueWords = new ArrayList<>();
+	    newWords = new ArrayList<>();
+	    
+	    updateQueueInfo();
+	}
+} 

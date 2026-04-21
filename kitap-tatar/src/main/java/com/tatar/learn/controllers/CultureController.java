@@ -115,28 +115,31 @@ public class CultureController implements Initializable {
         card.getStyleClass().add("culture-card");
         card.setMaxWidth(350);
         card.setMinWidth(280);
-        // Убираем фиксацию высоты:
-        // card.setMinHeight(280);
         
-        Label iconLabel = new Label(item.getIcon());
+        // Безопасное получение значений
+        String icon = item.getIcon() != null ? item.getIcon() : "📌";
+        String title = item.getTitle() != null ? item.getTitle() : "Без названия";
+        String titleTatar = item.getTitleTatar() != null ? item.getTitleTatar() : "";
+        String description = item.getDescription() != null ? item.getDescription() : "Нет описания";
+        
+        Label iconLabel = new Label(icon);
         iconLabel.getStyleClass().add("culture-card-icon");
         
-        Label titleLabel = new Label(item.getTitle());
+        Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("culture-card-title");
         titleLabel.setWrapText(true);
         titleLabel.setMaxWidth(Double.MAX_VALUE);
         
-        Label tatarLabel = new Label(item.getTitleTatar());
+        Label tatarLabel = new Label(titleTatar);
         tatarLabel.getStyleClass().add("culture-card-title-tatar");
         tatarLabel.setWrapText(true);
         tatarLabel.setMaxWidth(Double.MAX_VALUE);
         
-        Label descLabel = new Label(item.getDescription());
+        Label descLabel = new Label(description);
         descLabel.getStyleClass().add("culture-card-desc");
         descLabel.setWrapText(true);
         descLabel.setMaxWidth(Double.MAX_VALUE);
         
-        // Позволяем описанию занимать всё свободное место
         VBox.setVgrow(descLabel, Priority.ALWAYS);
         
         Button readMore = new Button("Подробнее →");

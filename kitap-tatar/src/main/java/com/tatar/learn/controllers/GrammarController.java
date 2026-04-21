@@ -2,12 +2,14 @@ package com.tatar.learn.controllers;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 
 import com.tatar.learn.models.GrammarRule;
 import com.tatar.learn.services.GrammarService;
+import com.tatar.learn.services.TopicsService;
 
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -35,7 +37,16 @@ public class GrammarController implements Initializable {
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         grammarService = GrammarService.getInstance();
-        allRules = grammarService.getAllRules();
+        TopicsService topicsService = TopicsService.getInstance();
+        
+        // Берем ТОЛЬКО грамматику из пройденных тем
+        allRules = topicsService.getGrammarFromCompletedTopics();
+        
+        // Если пройденных тем нет - показываем пустое состояние
+        if (allRules.isEmpty()) {
+            allRules = new ArrayList<>(); // Пустой список
+        }
+        
         currentRules = new ArrayList<>(allRules);
         
         setupCategoryFilter();
@@ -45,17 +56,30 @@ public class GrammarController implements Initializable {
         if (!currentRules.isEmpty()) {
             topicsList.getSelectionModel().select(0);
             showRule(0);
+        } else {
+            showEmptyState();
         }
     }
     
     private void setupCategoryFilter() {
         categoryCombo.getItems().add("Все категории");
         
-        // Оставляем как есть - для теории нужны категории правил
-        Set<String> categories = grammarService.getRuleCategories(); // или getRuleCategories()
-        if (categories != null && !categories.isEmpty()) {
-            categoryCombo.getItems().addAll(categories);
+        // ===== ИСПРАВЛЕНО: только категории из ПРОЙДЕННЫХ тем =====
+        TopicsService topicsService = TopicsService.getInstance();
+        Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
+        
+        Set<String> availableCategories = new HashSet<>();
+        for (GrammarRule rule : allRules) {
+            String category = rule.getCategory();
+            if (category != null && completedTopics.contains(category)) {
+                availableCategories.add(category);
+            }
         }
+        
+        if (!availableCategories.isEmpty()) {
+            categoryCombo.getItems().addAll(availableCategories);
+        }
+        // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
         
         categoryCombo.getSelectionModel().selectFirst();
         categoryCombo.setOnAction(e -> filterByCategory());

@@ -16,12 +16,18 @@ public class Word {
     private double easeFactor;
     
     // Конструктор с категорией
+ // Конструктор с категорией
     public Word(String tatar, String russian, String category) {
-        this(tatar, russian, category, new ArrayList<>());
+        this(tatar, russian, category, new ArrayList<>(), 0);
     }
-    
-    // НОВЫЙ КОНСТРУКТОР с примерами
+
+    // Конструктор с примерами
     public Word(String tatar, String russian, String category, List<String> examples) {
+        this(tatar, russian, category, examples, 0);
+    }
+
+    // ОСНОВНОЙ конструктор
+    public Word(String tatar, String russian, String category, List<String> examples, int i) {
         this.tatar = tatar;
         this.russian = russian;
         this.category = category;
@@ -31,13 +37,13 @@ public class Word {
         this.lastReviewed = null;
         this.easeFactor = 2.5;
     }
-    
+
     // Пустой конструктор
     public Word() {
         this.examples = new ArrayList<>();
     }
-    
-    // Геттеры и сеттеры
+
+	// Геттеры и сеттеры
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     

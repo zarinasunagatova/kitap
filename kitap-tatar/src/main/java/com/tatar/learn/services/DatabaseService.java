@@ -157,14 +157,11 @@ public class DatabaseService {
         }
         
         System.out.println("=== Current word count: " + wordCount + " ===");
-        
-        // Если слов нет - загружаем
-        if (wordCount == 0) {
-            System.out.println("=== No words found, loading from words.json ===");
-            loadWordsFromFile();
-        } else {
-            System.out.println("=== Words already exist, skipping load ===");
-        }
+     // НЕ загружаем слова автоматически - они будут добавляться при прохождении уроков
+	    if (wordCount == 0) {
+	    	System.out.println("=== Database is empty. Words will be added as lessons are completed ===");
+	        //loadWordsFromFile(); // ЗАКОММЕНТИРОВАНО
+	    }
         
         migrateIfNeeded();
     }
