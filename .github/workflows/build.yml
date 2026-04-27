@@ -25,22 +25,22 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir installer_output
+          dir target
           jpackage `
-            --input kitap-tatar/target `
+            --input target `
             --name "KitapTatar" `
             --main-jar kitap-tatar-app-1.0.0.jar `
             --main-class com.tatar.learn.KitapApp `
             --type app-image `
             --dest installer_output `
             --win-console `
-            --verbose `
-            --icon src/main/deploy/kitap.ico
+            --verbose
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-Windows
-          path: installer_output/
+          path: kitap-tatar/installer_output/
   
   build-macos:
     runs-on: macos-latest
@@ -60,22 +60,22 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
+          ls -la target
           jpackage \
-            --input kitap-tatar/target \
+            --input target \
             --name "KitapTatar" \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
             --mac-package-name "KitapTatar" \
-            --verbose \
-            --icon src/main/deploy/kitap.icns
+            --verbose
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-macOS
-          path: installer_output/
+          path: kitap-tatar/installer_output/
   
   build-linux:
     runs-on: ubuntu-latest
@@ -100,18 +100,18 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
+          ls -la target
           jpackage \
-            --input kitap-tatar/target \
+            --input target \
             --name "kitap-tatar" \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
-            --verbose \
-            --icon src/main/deploy/kitap.png
+            --verbose
       
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-Linux
-          path: installer_output/
+          path: kitap-tatar/installer_output/
