@@ -1,126 +1,95 @@
-name: Build Native Applications
+name: Build & Release KitapApp
 
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+ push:
+  tags:
+   - 'v*'
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Build fat JAR
-        run: |
-          cd kitap-tatar
-          mvn clean package
-      
-      - name: Create Windows executable
-        run: |
-          cd kitap-tatar
-          mkdir installer_output
-          dir target\*.jar
-          jpackage `
-            --input target `
-            --name "KitapTatar" `
-            --main-jar kitap-tatar-app-1.0.0-shaded.jar `
-            --main-class com.tatar.learn.KitapApp `
-            --type app-image `
-            --dest installer_output `
-            --win-menu `
-            --icon src/main/deploy/kitap.ico `
-            --verbose
-      
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KitapTatar-Windows
-          path: kitap-tatar/installer_output/KitapTatar/
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+ 
+  steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Build fat JAR
-        run: |
-          cd kitap-tatar
-          mvn clean package
-      
-      - name: Create macOS app
-        run: |
-          cd kitap-tatar
-          mkdir -p installer_output
-          ls target/*.jar
-          jpackage \
-            --input target \
-            --name "KitapTatar" \
-            --main-jar kitap-tatar-app-1.0.0-shaded.jar \
-            --main-class com.tatar.learn.KitapApp \
-            --type app-image \
-            --dest installer_output \
-            --mac-package-name "KitapTatar" \
-            --icon src/main/deploy/kitap.icns \
-            --verbose
-      
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KitapTatar-macOS
-          path: kitap-tatar/installer_output/KitapTatar.app/
+  - name: Set up Java 17
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: 17
 
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgl1-mesa-dev fakeroot
-      
-      - name: Build fat JAR
-        run: |
-          cd kitap-tatar
-          mvn clean package
-      
-      - name: Create Linux executable
-        run: |
-          cd kitap-tatar
-          mkdir -p installer_output
-          ls target/*.jar
-          jpackage \
-            --input target \
-            --name "kitap-tatar" \
-            --main-jar kitap-tatar-app-1.0.0-shaded.jar \
-            --main-class com.tatar.learn.KitapApp \
-            --type app-image \
-            --dest installer_output \
-            --icon src/main/deploy/kitap.png \
-            --verbose
-      
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KitapTatar-Linux
-          path: kitap-tatar/installer_output/kitap-tatar/
+  - name: Build JAR
+    run: mvn -B clean package
+
+   # ---------- Windows ----------
+   - name: Package (Windows)
+     if: runner.os == 'Windows'
+     run: |
+      jpackage ^
+        --input kitap-tatar/target ^
+        --name KitapApp ^
+        --main-jar kitap-tatar-app-1.0.0.jar ^
+        --main-class com.tatar.learn.KitapApp ^
+        --type exe ^
+        --icon kitap-tatar/src/main/deploy/kitap.ico ^
+        --add-modules javafx.controls,javafx.fxml ^
+        --win-menu ^
+        --win-shortcut
+
+    # ---------- Linux ----------
+   - name: Package (Linux)
+     if: runner.os == 'Linux'
+     run: |
+      jpackage \
+        --input kitap-tatar/target \
+        --name KitapApp \
+        --main-jar kitap-tatar-app-1.0.0.jar \
+        --main-class com.tatar.learn.KitapApp \
+        --type deb \
+        --icon kitap-tatar/src/main/deploy/kitap.png \
+        --add-modules javafx.controls,javafx.fxml
+
+   # ---------- macOS ----------
+   - name: Package (macOS)
+     if: runner.os == 'macOS'
+     run: |
+      jpackage \
+        --input kitap-tatar/target \
+        --name KitapApp \
+        --main-jar kitap-tatar-app-1.0.0.jar \
+        --main-class com.tatar.learn.KitapApp \
+        --type dmg \
+        --icon kitap-tatar/src/main/deploy/kitap.icns \
+        --add-modules javafx.controls,javafx.fxml
+
+  # ---------- Upload artifacts ----------
+   - name: Upload artifacts
+     uses: actions/upload-artifact@v4
+     with:
+       name: KitapApp-${{ runner.os }}
+       path: |
+         *.exe
+         *.deb
+         *.dmg
+
+  release:
+  needs: build
+  runs-on: ubuntu-latest
+  
+steps:
+ - name: Download artifacts
+   uses: actions/download-artifact@v4
+
+ - name: Create GitHub Release
+   uses: softprops/action-gh-release@v2
+   with:
+      files: |
+        **/*.exe
+        **/*.deb
+        **/*.dmg
+      env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
