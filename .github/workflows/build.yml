@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -24,77 +25,99 @@ jobs:
 
       - name: Build JAR
         run: |
-          cd kitap-tatar
+          cd kitap-tazar
           mvn clean package
+          echo "=== Built JARs ==="
+          ls -la target/*.jar
 
       # ---------- Windows ----------
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: |
           cd kitap-tatar
-          jpackage ^
-            --input target ^
-            --name KitapApp ^
-            --main-jar kitap-tatar-app-1.0.0-shaded.jar ^
-            --main-class com.tatar.learn.KitapApp ^
-            --type exe ^
-            --icon src/main/deploy/kitap.ico ^
-            --add-modules javafx.controls,javafx.fxml ^
-            --win-menu ^
-            --win-shortcut
+          jpackage `
+            --input target `
+            --name "KitapApp" `
+            --main-jar kitap-tatar-app-1.0.0-shaded.jar `
+            --main-class com.tatar.learn.KitapApp `
+            --type app-image `
+            --dest installer_output `
+            --win-menu `
+            --win-shortcut `
+            --icon src/main/deploy/kitap.ico
+          Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
 
       # ---------- Linux ----------
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           cd kitap-tatar
+          mkdir -p installer_output
           jpackage \
             --input target \
-            --name KitapApp \
+            --name "kitap-app" \
             --main-jar kitap-tatar-app-1.0.0-shaded.jar \
             --main-class com.tatar.learn.KitapApp \
-            --type deb \
-            --icon src/main/deploy/kitap.png \
-            --add-modules javafx.controls,javafx.fxml
+            --type app-image \
+            --dest installer_output \
+            --icon src/main/deploy/kitap.png
+          tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
 
       # ---------- macOS ----------
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
           cd kitap-tatar
+          mkdir -p installer_output
           jpackage \
             --input target \
-            --name KitapApp \
+            --name "KitapApp" \
             --main-jar kitap-tatar-app-1.0.0-shaded.jar \
             --main-class com.tatar.learn.KitapApp \
-            --type dmg \
-            --icon src/main/deploy/kitap.icns \
-            --add-modules javafx.controls,javafx.fxml
+            --type app-image \
+            --dest installer_output \
+            --mac-package-name "KitapApp" \
+            --icon src/main/deploy/kitap.icns
+          zip -r KitapApp-macOS.zip installer_output/KitapApp.app
 
       # ---------- Upload artifacts ----------
-      - name: Upload artifacts
+      - name: Upload Windows artifact
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: KitapApp-${{ runner.os }}
-          path: |
-            **/*.exe
-            **/*.deb
-            **/*.dmg
+          name: KitapApp-Windows
+          path: kitap-tatar/KitapApp-Windows.zip
+
+      - name: Upload Linux artifact
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitapApp-Linux
+          path: kitap-tatar/KitapApp-Linux.tar.gz
+
+      - name: Upload macOS artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitapApp-macOS
+          path: kitap-tatar/KitapApp-macOS.zip
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            **/*.exe
-            **/*.deb
-            **/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
