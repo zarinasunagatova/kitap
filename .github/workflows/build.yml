@@ -19,29 +19,42 @@ jobs:
           distribution: 'temurin'
       
       - name: Build with Maven
-        run: cd kitap-tatar && mvn clean package -P windows
-      
-      - name: Create Windows executable
         run: |
           cd kitap-tatar
-          mkdir installer_output
-          dir target
+          mvn clean package
+      
+      - name: Create Windows executable
+        shell: pwsh
+        run: |
+          cd kitap-tatar
+          mkdir -p installer_output
+          
+          # Find JavaFX path
+          $javafxBase = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-base\21.0.3"
+          $javafxControls = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-controls\21.0.3"
+          $javafxFxml = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-fxml\21.0.3"
+          $javafxMedia = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-media\21.0.3"
+          $javafxGraphics = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-graphics\21.0.3"
+          
           jpackage `
-            --input target `
+            --type app-image `
             --name "KitapTatar" `
+            --input target `
             --main-jar kitap-tatar-app-1.0.0.jar `
             --main-class com.tatar.learn.KitapApp `
-            --type app-image `
             --dest installer_output `
             --win-console `
             --verbose `
-            --icon src/main/deploy/kitap.ico
+            --icon src/main/deploy/kitap.ico `
+            --module-path "$javafxBase;$javafxControls;$javafxFxml;$javafxMedia;$javafxGraphics" `
+            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics `
+            --java-options "--enable-native-access=ALL-UNNAMED"
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-Windows
-          path: kitap-tatar/installer_output/
+          path: kitap-tatar/installer_output/KitapTatar/
   
   build-macos:
     runs-on: macos-latest
@@ -55,29 +68,40 @@ jobs:
           distribution: 'temurin'
       
       - name: Build with Maven
-        run: cd kitap-tatar && mvn clean package -P mac
+        run: |
+          cd kitap-tatar
+          mvn clean package
       
       - name: Create macOS app
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-          ls -la target
+          
+          # Find JavaFX path
+          JAVAFX_BASE="$HOME/.m2/repository/org/openjfx/javafx-base/21.0.3"
+          JAVAFX_CONTROLS="$HOME/.m2/repository/org/openjfx/javafx-controls/21.0.3"
+          JAVAFX_FXML="$HOME/.m2/repository/org/openjfx/javafx-fxml/21.0.3"
+          JAVAFX_MEDIA="$HOME/.m2/repository/org/openjfx/javafx-media/21.0.3"
+          JAVAFX_GRAPHICS="$HOME/.m2/repository/org/openjfx/javafx-graphics/21.0.3"
+          
           jpackage \
-            --input target \
+            --type app-image \
             --name "KitapTatar" \
+            --input target \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
-            --type app-image \
             --dest installer_output \
             --mac-package-name "KitapTatar" \
             --verbose \
-            --icon src/main/deploy/kitap.icns
+            --icon src/main/deploy/kitap.icns \
+            --module-path "$JAVAFX_BASE:$JAVAFX_CONTROLS:$JAVAFX_FXML:$JAVAFX_MEDIA:$JAVAFX_GRAPHICS" \
+            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-macOS
-          path: kitap-tatar/installer_output/
+          path: kitap-tatar/installer_output/KitapTatar.app/
   
   build-linux:
     runs-on: ubuntu-latest
@@ -96,25 +120,36 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libgl1-mesa-dev fakeroot
       
       - name: Build with Maven
-        run: cd kitap-tatar && mvn clean package -P linux
+        run: |
+          cd kitap-tatar
+          mvn clean package
       
       - name: Create Linux executable
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-          ls -la target
+          
+          # Find JavaFX path
+          JAVAFX_BASE="$HOME/.m2/repository/org/openjfx/javafx-base/21.0.3"
+          JAVAFX_CONTROLS="$HOME/.m2/repository/org/openjfx/javafx-controls/21.0.3"
+          JAVAFX_FXML="$HOME/.m2/repository/org/openjfx/javafx-fxml/21.0.3"
+          JAVAFX_MEDIA="$HOME/.m2/repository/org/openjfx/javafx-media/21.0.3"
+          JAVAFX_GRAPHICS="$HOME/.m2/repository/org/openjfx/javafx-graphics/21.0.3"
+          
           jpackage \
-            --input target \
+            --type app-image \
             --name "kitap-tatar" \
+            --input target \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
-            --type app-image \
             --dest installer_output \
             --verbose \
-            --icon src/main/deploy/kitap.png
+            --icon src/main/deploy/kitap.png \
+            --module-path "$JAVAFX_BASE:$JAVAFX_CONTROLS:$JAVAFX_FXML:$JAVAFX_MEDIA:$JAVAFX_GRAPHICS" \
+            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics
       
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-Linux
-          path: kitap-tatar/installer_output/
+          path: kitap-tatar/installer_output/kitap-tatar/
