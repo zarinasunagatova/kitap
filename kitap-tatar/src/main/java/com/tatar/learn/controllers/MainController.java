@@ -1,30 +1,36 @@
 package com.tatar.learn.controllers;
 
+import com.tatar.learn.services.BackupManager;
 import com.tatar.learn.services.DatabaseService;
+import com.tatar.learn.services.ImportService;
 import com.tatar.learn.services.TTSService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
+import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
+import java.sql.SQLException;
+import java.util.Optional;
 import java.util.ResourceBundle;
-import javafx.scene.layout.VBox;
-import javafx.geometry.Insets;
 
 public class MainController implements Initializable {
     
-    @FXML private Button lessonsButton;      // Уроки
-    @FXML private Button dictionaryButton;    // Словарь
-    @FXML private Button cardsButton;         // Карточки
-    @FXML private Button testButton;          // Тесты
-    @FXML private Button cultureButton;       // Культура
+    @FXML private Button lessonsButton;
+    @FXML private Button dictionaryButton;
+    @FXML private Button cardsButton;
+    @FXML private Button testButton;
+    @FXML private Button cultureButton;
+    @FXML private Button backupButton;
     @FXML private Label statusLabel;
     @FXML private Label voiceStatusLabel;
     @FXML private Label dbStatusLabel;
@@ -34,6 +40,9 @@ public class MainController implements Initializable {
     
     private boolean databaseAvailable = false;
     
+    private BackupManager backupManager;
+    private ImportService importService;
+    
     @Override
     public void initialize(URL location, ResourceBundle resources) {
         statusLabel.setText("Рәхим итегез! / Добро пожаловать!");
@@ -41,39 +50,224 @@ public class MainController implements Initializable {
         updateVoiceStatus();
         checkDatabaseStatus();
         
+        initServices();
+        
         lessonsButton.setOnAction(e -> openLessons());
         dictionaryButton.setOnAction(e -> openDictionary());
         cardsButton.setOnAction(e -> openCards());
         testButton.setOnAction(e -> openTest());
         cultureButton.setOnAction(e -> openCultureSection());
+        backupButton.setOnAction(e -> openBackupDialog());
+    }
+    
+    private void initServices() {
+        try {
+            backupManager = BackupManager.getInstance();
+            System.out.println("✅ BackupManager доступен");
+        } catch (SQLException e) {
+            System.err.println("⚠️ BackupManager не доступен: " + e.getMessage());
+            backupManager = null;
+        }
+        
+        try {
+            importService = ImportService.getInstance();
+            System.out.println("✅ ImportService доступен");
+        } catch (SQLException e) {
+            System.err.println("⚠️ ImportService не доступен: " + e.getMessage());
+            importService = null;
+        }
     }
     
     /**
-     * Открывает раздел УРОКИ (изучение новых тем)
+     * Открывает диалог управления бэкапами и импортом 
      */
- // MainController.java
+    private void openBackupDialog() {
+        if (!ensureDatabaseAvailable("бэкап/импорт")) {
+            return;
+        }
+        
+        Alert dialog = new Alert(Alert.AlertType.CONFIRMATION);
+        dialog.setTitle("💾 Бэкап и восстановление");
+        dialog.setHeaderText("Сохранение и восстановление данных");
+        setAlertIcon(dialog);
+        ButtonType backupBtn = new ButtonType("📀 Создать бэкап");
+        ButtonType restoreBtn = new ButtonType("🔄 Восстановить из бэкапа");
+        ButtonType cancelBtn = new ButtonType("Отмена", ButtonBar.ButtonData.CANCEL_CLOSE);
+        
+        dialog.getDialogPane().getButtonTypes().setAll(backupBtn, restoreBtn, cancelBtn);
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        
+        Label infoLabel = new Label(
+            "📌 Бэкап сохраняет ТОЛЬКО слова из словаря\n" +
+            "   • Татарские слова\n" +
+            "   • Русские переводы\n" +
+            "   • Категории и примеры\n" +
+            "   • Статистику изучения (timesCorrect, timesWrong)\n\n" +
+            "⚠️ Прогресс по урокам и тестам НЕ сохраняется"
+        );
+        infoLabel.setWrapText(true);
+        infoLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #555;");
+        
+        content.getChildren().add(infoLabel);
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefWidth(450);
+        
+        Optional<ButtonType> result = dialog.showAndWait();
+        
+        if (result.isPresent()) {
+            if (result.get() == backupBtn) {
+                showBackupTypeDialog(); 
+            } else if (result.get() == restoreBtn) {
+                showRestoreDialog(); 
+            }
+        }
+    }
+
+    /**
+     * Показывает диалог выбора типа бэкапа
+     */
+    private void showBackupTypeDialog() {
+        if (backupManager == null) {
+            showErrorAlert("Бэкап недоступен", "Сервис бэкапов не инициализирован.");
+            return;
+        }
+        
+        Alert typeDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        typeDialog.setTitle("Создание бэкапа");
+        typeDialog.setHeaderText("Выберите тип бэкапа");
+        setAlertIcon(typeDialog);
+        ButtonType manualType = new ButtonType("📁 Ручной бэкап (сейчас)");
+        ButtonType dailyType = new ButtonType("📅 Ежедневный бэкап");
+        ButtonType cancelBtn = new ButtonType("Отмена", ButtonBar.ButtonData.CANCEL_CLOSE);
+        
+        typeDialog.getDialogPane().getButtonTypes().setAll(manualType, dailyType, cancelBtn);
+        
+        VBox content = new VBox(10);
+        content.setPadding(new Insets(10));
+        
+        Label infoLabel = new Label(
+            "• Ручной бэкап - создает копию прямо сейчас\n" +
+            "• Ежедневный бэкап - будет создаваться автоматически раз в день"
+        );
+        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #666;");
+        content.getChildren().add(infoLabel);
+        typeDialog.getDialogPane().setContent(content);
+        
+        Optional<ButtonType> result = typeDialog.showAndWait();
+        
+        if (result.isPresent() && result.get() != cancelBtn) {
+            try {
+                String backupPath = null;
+                if (result.get() == manualType) {
+                    backupPath = backupManager.createManualBackup();
+                } else if (result.get() == dailyType) {
+                    backupManager.createDailyBackup();
+                }
+                
+                if (backupPath != null || result.get() == dailyType) {
+                    String msg = result.get() == manualType ? 
+                        "Бэкап создан: " + backupPath : 
+                        "Ежедневный бэкап запланирован";
+                    showInfoAlert("✅ Бэкап создан", msg);
+                    statusLabel.setText("✅ " + msg);
+                } else {
+                    showErrorAlert("Ошибка", "Не удалось создать бэкап");
+                }
+            } catch (Exception e) {
+                showErrorAlert("Ошибка бэкапа", e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Показывает диалог восстановления из бэкапа
+     */
+    private void showRestoreDialog() {
+        if (importService == null) {
+            showErrorAlert("Восстановление недоступно", "Сервис импорта не инициализирован.");
+            return;
+        }
+        
+        Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmDialog.setTitle("Восстановление данных");
+        confirmDialog.setHeaderText("⚠️ Восстановление из бэкапа");
+        confirmDialog.setContentText(
+            "ВНИМАНИЕ! Восстановление ЗАМЕНИТ все текущие данные на данные из бэкапа.\n\n" +
+            "• Все текущие слова будут заменены\n" +
+            "Продолжить?"
+        );
+        setAlertIcon(confirmDialog);
+        ButtonType yesBtn = new ButtonType("Да, восстановить");
+        ButtonType noBtn = new ButtonType("Нет, отмена", ButtonBar.ButtonData.CANCEL_CLOSE);
+        confirmDialog.getButtonTypes().setAll(yesBtn, noBtn);
+        
+        Optional<ButtonType> result = confirmDialog.showAndWait();
+        
+        if (result.isPresent() && result.get() == yesBtn) {
+            FileChooser fileChooser = new FileChooser();
+            fileChooser.setTitle("Выберите файл бэкапа (.json)");
+            fileChooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Бэкап файлы", "*.json")
+            );
+            fileChooser.setInitialDirectory(new File("backups"));
+            
+            File selectedFile = fileChooser.showOpenDialog(null);
+            if (selectedFile != null) {
+                try {
+                    // Используем полный импорт с перезаписью
+                    ImportService.ImportResult importResult = importService.importFullWithProgress(
+                        selectedFile.getAbsolutePath(), 
+                        true  // перезаписать все
+                    );
+                    
+                    if (importResult.isSuccess()) {
+                        Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                        successAlert.setTitle("Восстановление завершено");
+                        successAlert.setHeaderText("✅ Данные успешно восстановлены");
+                        successAlert.setContentText(
+                            "Восстановлено слов: " + importResult.getAdded() + "\n" +
+                            "Пропущено: " + importResult.getSkipped() + "\n\n" +
+                            "Рекомендуется перезапустить приложение."
+                        );
+                        
+                        ButtonType restartBtn = new ButtonType("Перезапустить сейчас");
+                        ButtonType laterBtn = new ButtonType("Позже");
+                        successAlert.getButtonTypes().setAll(restartBtn, laterBtn);
+                        
+                        Optional<ButtonType> restartResult = successAlert.showAndWait();
+                        if (restartResult.isPresent() && restartResult.get() == restartBtn) {
+                            Platform.exit();
+                            // Можно добавить автоматический перезапуск
+                        }
+                    } else {
+                        showErrorAlert("Ошибка восстановления", importResult.getMessage());
+                    }
+                    
+                    statusLabel.setText(importResult.getMessage());
+                } catch (Exception e) {
+                    showErrorAlert("Ошибка", "Не удалось восстановить данные: " + e.getMessage());
+                }
+            }
+        }
+    }
+    
     private void openLessons() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/TopicsView.fxml"));
             Parent root = loader.load();
             Stage stage = new Stage();
-            stage.setTitle("📚 Уроки - Выберите тему");
+            stage.setTitle(" Уроки / Дәресләр ");
             stage.setScene(new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT));
             loadCss(stage.getScene());
             setStageIcon(stage);
             stage.show();
-            
-            // НЕ ЗАКРЫВАЕМ ГЛАВНОЕ ОКНО!
-            // Просто показываем новое поверх
-            
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
     
-    /**
-     * Открывает СЛОВАРЬ (только слова из пройденных тем)
-     */
     private void openDictionary() {
         if (!ensureDatabaseAvailable("словарь")) {
             return;
@@ -83,8 +277,7 @@ public class MainController implements Initializable {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/DictionaryView.fxml"));
             Parent root = loader.load();
             Stage stage = new Stage();
-            stage.setTitle("Сүзлек / Словарь");
-            
+            stage.setTitle(" Словарь / Сүзлек ");
             Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
             loadCss(scene);
             setStageIcon(stage);
@@ -98,9 +291,6 @@ public class MainController implements Initializable {
         }
     }
     
-    /**
-     * Открывает КАРТОЧКИ (повторение слов по SM-2)
-     */
     private void openCards() {
         if (!ensureDatabaseAvailable("карточки")) {
             return;
@@ -111,11 +301,10 @@ public class MainController implements Initializable {
             Parent root = loader.load();
             
             LearnController learnController = loader.getController();
-            learnController.setMode("cards"); // Режим карточек
+            learnController.setMode("cards");
             
             Stage stage = new Stage();
-            stage.setTitle("🃏 Карточки - Повторение слов");
-            
+            stage.setTitle(" Карточки / Карталар ");
             Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
             loadCss(scene);
             setStageIcon(stage);
@@ -135,7 +324,6 @@ public class MainController implements Initializable {
             Parent root = loader.load();
             Stage stage = new Stage();
             stage.setTitle("Тесты и упражнения / Сынау һәм күнегүләр");
-            
             Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
             loadCss(scene);
             setStageIcon(stage);
@@ -155,10 +343,9 @@ public class MainController implements Initializable {
             Parent root = loader.load();
             
             Stage cultureStage = new Stage();
-            cultureStage.setTitle("Китап - Татарская культура");
+            cultureStage.setTitle(" Культура / Мәдәният ");
             cultureStage.setScene(new Scene(root, 1000, 700));
             setStageIcon(cultureStage);
-            // Безопасная загрузка CSS
             try {
                 URL cssUrl = getClass().getResource("/styles/main.css");
                 if (cssUrl != null) {
@@ -170,14 +357,11 @@ public class MainController implements Initializable {
             
             cultureStage.initModality(javafx.stage.Modality.NONE);
             cultureStage.show();
-            
         } catch (Exception e) {
             e.printStackTrace();
             showErrorAlert("Ошибка", "Не удалось открыть раздел культуры: " + e.getMessage());
         }
     }
-    
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
     
     private void checkDatabaseStatus() {
         try {
@@ -280,12 +464,10 @@ public class MainController implements Initializable {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
                 System.out.println("✅ CSS загружен");
             } else {
-                System.err.println("⚠️ CSS не найден, приложение продолжит работу без стилей");
-                // НЕ ПАДАЕМ — просто логируем предупреждение
+                System.err.println("⚠️ CSS не найден");
             }
         } catch (Exception e) {
             System.err.println("⚠️ Ошибка загрузки CSS: " + e.getMessage());
-            // НЕ ПАДАЕМ — приложение работает без CSS
         }
     }
     
@@ -325,13 +507,18 @@ public class MainController implements Initializable {
         alert.showAndWait();
     }
     
+    private void showInfoAlert(String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Информация");
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+    
     public void refreshVoiceStatus() {
         updateVoiceStatus();
     }
     
-    /**
-     * Устанавливает иконку для окна (Stage)
-     */
     private void setStageIcon(Stage stage) {
         try {
             URL iconUrl = getClass().getResource("/images/kitap.png");
@@ -347,9 +534,17 @@ public class MainController implements Initializable {
         }
     }
     
-    /**
-     * Безопасная загрузка иконки для диалоговых окон
-     */
+    private void setAlertIcon(Alert alert) {
+        try {
+            Image icon = loadDialogIcon();
+            if (icon != null) {
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+        }
+    }
     private Image loadDialogIcon() {
         try {
             InputStream is = getClass().getResourceAsStream("/images/kitap.png");
@@ -360,23 +555,8 @@ public class MainController implements Initializable {
                 return new Image(is);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось загрузить иконку для диалога: " + e.getMessage());
+            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
         }
         return null;
-    }
-
-    /**
-     * Устанавливает иконку для Alert диалога
-     */
-    private void setAlertIcon(Alert alert) {
-        try {
-            Image icon = loadDialogIcon();
-            if (icon != null) {
-                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
-                stage.getIcons().add(icon);
-            }
-        } catch (Exception e) {
-            System.err.println("⚠️ Не удалось установить иконку для Alert: " + e.getMessage());
-        }
     }
 }

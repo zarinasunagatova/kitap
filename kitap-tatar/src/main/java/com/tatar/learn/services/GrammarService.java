@@ -1,11 +1,9 @@
 package com.tatar.learn.services;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.tatar.learn.models.GrammarExercise;
 import com.tatar.learn.models.GrammarRule;
 import java.io.*;
-import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -26,7 +24,6 @@ public class GrammarService {
         private List<String> options;
         private Integer correct;
         private String correctAnswer;
-        private String hint;
         private String explanation;
         private List<Pair> pairs;
         
@@ -37,7 +34,6 @@ public class GrammarService {
         public List<String> getOptions() { return options; }
         public Integer getCorrect() { return correct; }
         public String getCorrectAnswer() { return correctAnswer; }
-        public String getHint() { return hint; }
         public String getExplanation() { return explanation; }
         public List<Pair> getPairs() { return pairs; }
     }
@@ -61,20 +57,16 @@ public class GrammarService {
         private int id;
         private String title;
         private String category;
-        private String level;
         private String explanation;
         private List<Example> examples;
-        private String notes;
-        private List<Integer> exercises;
+        private String notes;    
         
         public int getId() { return id; }
         public String getTitle() { return title; }
         public String getCategory() { return category; }
-        public String getLevel() { return level; }
         public String getExplanation() { return explanation; }
         public List<Example> getExamples() { return examples; }
         public String getNotes() { return notes; }
-        public List<Integer> getExercises() { return exercises; }
     }
     
     private static class Example {
@@ -86,10 +78,7 @@ public class GrammarService {
     }
     
     private static class GrammarWrapper {
-        private List<String> categories;
         private List<GrammarJsonRule> rules;
-        
-        public List<String> getCategories() { return categories; }
         public List<GrammarJsonRule> getRules() { return rules; }
     }
     

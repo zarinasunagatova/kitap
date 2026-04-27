@@ -9,14 +9,13 @@ public class Word {
     private String tatar;
     private String russian;
     private String category;
-    private List<String> examples;  // НОВОЕ ПОЛЕ
+    private List<String> examples;  
     private int timesCorrect;
     private int timesWrong;
     private LocalDate lastReviewed;
     private double easeFactor;
     
     // Конструктор с категорией
- // Конструктор с категорией
     public Word(String tatar, String russian, String category) {
         this(tatar, russian, category, new ArrayList<>(), 0);
     }
@@ -38,7 +37,6 @@ public class Word {
         this.easeFactor = 2.5;
     }
 
-    // Пустой конструктор
     public Word() {
         this.examples = new ArrayList<>();
     }
@@ -79,7 +77,6 @@ public class Word {
         examples.add(example);
     }
     
-    // Получить случайный пример
     public String getRandomExample() {
         if (examples == null || examples.isEmpty()) {
             return null;

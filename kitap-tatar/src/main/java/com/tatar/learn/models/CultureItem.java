@@ -8,8 +8,8 @@ public class CultureItem {
     private String titleTatar;
     private String description;
     private String descriptionTatar;
-    private String category; // "holiday", "food", "music", "clothing", "literature", "tradition"
-    private String icon; // эмодзи или путь к иконке
+    private String category;
+    private String icon; 
     private List<String> funFacts;
     private String imageUrl;
     

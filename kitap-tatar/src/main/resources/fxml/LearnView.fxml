@@ -16,35 +16,32 @@
     </padding>
     
     <!-- СТАТИСТИКА -->
-    <HBox alignment="CENTER" spacing="10">
-        <Label fx:id="progressLabel" styleClass="progress-label" text="Выучено: 0 из 16 (средний 0%)" />
-        <Label fx:id="queueInfoLabel" styleClass="queue-info" text="📚 Загрузка..." />
-        <Label fx:id="categoryLabel" styleClass="category-label" text="все" />
-    </HBox>
+<HBox alignment="CENTER" spacing="10">
+    <Label fx:id="progressLabel" styleClass="progress-label" text="📊 Загрузка..." />
+    <Label fx:id="queueInfoLabel" styleClass="queue-info" text="📚 Загрузка..." />
+    <Label fx:id="categoryLabel" styleClass="category-label" text="" />
+</HBox>
+
+<!-- КАРТОЧКА -->
+<StackPane alignment="CENTER" maxWidth="700" VBox.vgrow="ALWAYS">
+    <!-- Лицевая сторона -->
+    <VBox fx:id="cardFront" alignment="CENTER" spacing="20" styleClass="word-card-front">
+        <Label fx:id="tatarWordLabel" styleClass="word-large" text="📚" />
+        <Button fx:id="playButton" prefHeight="40.0" prefWidth="40.0" styleClass="play-button" text="🔊" />
+    </VBox>
     
-    <!-- КАРТОЧКА -->
-    <StackPane alignment="CENTER" maxWidth="700" VBox.vgrow="ALWAYS">
-        <!-- Лицевая сторона -->
-        <VBox fx:id="cardFront" alignment="CENTER" spacing="20" styleClass="word-card-front">
-            <Label fx:id="tatarWordLabel" styleClass="word-large" text="Бер" />
-            <Button fx:id="playButton" prefHeight="40.0" prefWidth="40.0" styleClass="play-button" text="🔊" />
-        </VBox>
+    <!-- Обратная сторона -->
+    <VBox fx:id="cardBack" alignment="CENTER" managed="false" spacing="20" styleClass="word-card-back" visible="false">
+        <Label fx:id="russianWordLabel" styleClass="word-large" text="📖" />
         
-        <!-- Обратная сторона -->
-        <VBox fx:id="cardBack" alignment="CENTER" managed="false" spacing="20" styleClass="word-card-back" visible="false">
-            <Label fx:id="russianWordLabel" styleClass="word-large" text="Один" />
-            
-            <!-- НОВАЯ ОБЛАСТЬ ДЛЯ ПРИМЕРОВ -->
-            <VBox fx:id="examplesContainer" alignment="CENTER" spacing="10" styleClass="examples-container">
-                <Label styleClass="examples-title" text="📖 Примеры использования" />
-                <ScrollPane fx:id="examplesScroll" fitToWidth="true" maxHeight="200" styleClass="examples-scroll" visible="false">
-                    <VBox fx:id="examplesList" alignment="CENTER" spacing="8" styleClass="examples-list">
-                        <!-- Примеры будут добавляться динамически -->
-                    </VBox>
-                </ScrollPane>
-            </VBox>
+        <VBox fx:id="examplesContainer" alignment="CENTER" spacing="10" styleClass="examples-container">
+            <Label styleClass="examples-title" text="📖 Примеры использования" />
+            <ScrollPane fx:id="examplesScroll" fitToWidth="true" maxHeight="200" styleClass="examples-scroll" visible="false">
+                <VBox fx:id="examplesList" alignment="CENTER" spacing="8" styleClass="examples-list" />
+            </ScrollPane>
         </VBox>
-    </StackPane>
+    </VBox>
+</StackPane>
     
     <!-- ПОДСКАЗКА -->
     <Label styleClass="hint-label" text="нажми на карточку" />

@@ -3,7 +3,6 @@ package com.tatar.learn.controllers;
 import com.tatar.learn.models.GrammarExercise;
 import com.tatar.learn.services.GrammarService;
 import com.tatar.learn.services.TopicsService;
-import com.tatar.learn.models.Topic;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -65,11 +64,10 @@ public class MultipleChoiceController implements Initializable {
             grammarService = GrammarService.getInstance();
             TopicsService topicsService = TopicsService.getInstance();
             
-            // ===== НОВОЕ: получаем ТОЛЬКО упражнения из пройденных тем =====
+            // ===== получаем ТОЛЬКО упражнения из пройденных тем =====
             Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
             System.out.println("Пройденные темы: " + completedTopics);
             
-            // Получаем ВСЕ упражнения
             List<GrammarExercise> allMultipleChoice = grammarService.getExercisesByType(MULTIPLE_CHOICE_TYPE);
             List<GrammarExercise> allMatching = grammarService.getExercisesByType(MATCHING_TYPE);
             
@@ -86,7 +84,6 @@ public class MultipleChoiceController implements Initializable {
                     currentExercises.add(ex);
                 }
             }
-            // ===== КОНЕЦ НОВОГО =====
             
             // Проверяем, есть ли хоть какие-то упражнения
             if (currentExercises.isEmpty()) {
@@ -109,7 +106,7 @@ public class MultipleChoiceController implements Initializable {
     	if (categoryCombo != null) {
             categoryCombo.getItems().add("Все категории");
             
-            // ===== ИСПРАВЛЕНО: только категории из ПРОЙДЕННЫХ тем =====
+            // ===== только категории из ПРОЙДЕННЫХ тем =====
             TopicsService topicsService = TopicsService.getInstance();
             Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
             
@@ -679,13 +676,5 @@ public class MultipleChoiceController implements Initializable {
         if (progressLabel != null && currentExercises != null) {
             progressLabel.setText(String.format("📈 Прогресс: %d из %d упражнений", answeredExercises.size(), currentExercises.size()));
         }
-    }
-    
-    private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
     }
 }

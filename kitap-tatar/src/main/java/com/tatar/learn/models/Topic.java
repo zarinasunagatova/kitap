@@ -13,11 +13,11 @@ public class Topic {
     private boolean isCompleted;
     private List<Word> words;
     private GrammarRule grammar;
-    private List<GrammarExercise> exercises;  // ← ИСПРАВЛЕНО
+    private List<GrammarExercise> exercises; 
     
     public Topic() {
         this.words = new ArrayList<>();
-        this.exercises = new ArrayList<>();  // ← ИСПРАВЛЕНО
+        this.exercises = new ArrayList<>();  
     }
     
     public Topic(int id, String name, String nameTatar, String icon, int order) {
@@ -27,7 +27,7 @@ public class Topic {
         this.icon = icon;
         this.order = order;
         this.words = new ArrayList<>();
-        this.exercises = new ArrayList<>();  // ← ИСПРАВЛЕНО
+        this.exercises = new ArrayList<>();  
         this.isUnlocked = (order == 1);
         this.isCompleted = false;
     }

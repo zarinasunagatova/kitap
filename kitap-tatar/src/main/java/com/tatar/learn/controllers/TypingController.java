@@ -42,11 +42,9 @@ public class TypingController implements Initializable {
             grammarService = GrammarService.getInstance();
             TopicsService topicsService = TopicsService.getInstance();
             
-            // ===== НОВОЕ: получаем ТОЛЬКО упражнения из пройденных тем =====
             Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
             System.out.println("TypingController - пройденные темы: " + completedTopics);
             
-            // Получаем все typing упражнения
             List<GrammarExercise> allTyping = grammarService.getExercisesByType(EXERCISE_TYPE);
             
             // Фильтруем по пройденным темам
@@ -57,7 +55,6 @@ public class TypingController implements Initializable {
                     currentExercises.add(ex);
                 }
             }
-            // ===== КОНЕЦ НОВОГО =====
             
             // Проверяем, есть ли упражнения
             if (currentExercises.isEmpty()) {
@@ -108,7 +105,7 @@ public class TypingController implements Initializable {
         if (categoryCombo != null) {
             categoryCombo.getItems().add("Все категории");
             
-            // ===== ИСПРАВЛЕНО: только категории из ПРОЙДЕННЫХ тем =====
+            // только категории из ПРОЙДЕННЫХ тем 
             TopicsService topicsService = TopicsService.getInstance();
             Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
             
@@ -124,7 +121,6 @@ public class TypingController implements Initializable {
             if (!availableCategories.isEmpty()) {
                 categoryCombo.getItems().addAll(availableCategories);
             }
-            // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
             
             categoryCombo.getSelectionModel().selectFirst();
             categoryCombo.setOnAction(e -> filterByCategory());
@@ -134,10 +130,7 @@ public class TypingController implements Initializable {
     private void filterByCategory() {
         String selectedCategory = categoryCombo.getValue();
         
-        // Сохраняем предыдущую категорию
-        String previousCategory = null;
         if (!currentExercises.isEmpty() && currentExercises.get(0) != null) {
-            previousCategory = currentExercises.get(0).getCategory();
         }
         
         // Фильтруем по типу И категории
@@ -506,13 +499,5 @@ public class TypingController implements Initializable {
             int total = currentExercises.size();
             progressLabel.setText(String.format("📈 Прогресс: %d из %d упражнений", answered, total));
         }
-    }
-    
-    private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
     }
 }

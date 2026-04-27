@@ -3,10 +3,8 @@ package com.tatar.learn.services;
 import com.tatar.learn.models.Word;
 import com.tatar.learn.utils.JsonUtils;
 import com.tatar.learn.utils.WordsExport;
-
 import java.sql.*;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.time.LocalDate;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -166,138 +164,8 @@ public class DatabaseService {
         migrateIfNeeded();
     }
     
-    private void loadWordsFromFile() {
-        System.out.println("=== loadWordsFromFile() started ===");
-        
-        // Пробуем разные места для файла
-        String[] possiblePaths = {
-            "words.json",
-            "./words.json",
-            "src/main/resources/data/words/words.json",
-            "data/words/words.json",
-            "../words.json"
-        };
-        
-        File jsonFile = null;
-        for (String path : possiblePaths) {
-            File f = new File(path);
-            if (f.exists()) {
-                jsonFile = f;
-                System.out.println("✓ Found words.json at: " + f.getAbsolutePath());
-                break;
-            }
-        }
-        
-        // Пробуем из resources
-        if (jsonFile == null) {
-            InputStream is = getClass().getClassLoader().getResourceAsStream("data/words/words.json");
-            if (is == null) {
-                is = getClass().getClassLoader().getResourceAsStream("words.json");
-            }
-            if (is != null) {
-                System.out.println("✓ Found words.json in resources");
-                try {
-                    String content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                    importWordsFromJsonContent(content);
-                    return;
-                } catch (Exception e) {
-                    System.err.println("Failed to read from resources: " + e.getMessage());
-                }
-            }
-        }
-        
-        // Если нашли как файл
-        if (jsonFile != null) {
-            try {
-                String content = new String(java.nio.file.Files.readAllBytes(jsonFile.toPath()), StandardCharsets.UTF_8);
-                importWordsFromJsonContent(content);
-            } catch (Exception e) {
-                System.err.println("Failed to read file: " + e.getMessage());
-                addSampleWords();
-            }
-        } else {
-            System.err.println("✗ words.json NOT FOUND anywhere! Using sample words.");
-            addSampleWords();
-        }
-    }
     
-    private void importWordsFromJsonContent(String jsonContent) {
-        System.out.println("=== Importing words from JSON content ===");
-        
-        try {
-            com.google.gson.JsonObject jsonObject = JsonUtils.fromJson(jsonContent, com.google.gson.JsonObject.class);
-            
-            com.google.gson.JsonArray categoriesArray = jsonObject.getAsJsonArray("categories");
-            if (categoriesArray != null && categoriesArray.size() > 0) {
-                System.out.println("Found " + categoriesArray.size() + " categories in JSON");
-            }
-            
-            com.google.gson.JsonArray wordsArray = jsonObject.getAsJsonArray("words");
-            
-            if (wordsArray == null || wordsArray.size() == 0) {
-                System.err.println("No words array in JSON");
-                addSampleWords();
-                return;
-            }
-            
-            System.out.println("Found " + wordsArray.size() + " words in JSON");
-            
-            Connection conn = getValidConnection();
-            conn.setAutoCommit(false);
-            
-            try {
-                String sql = "INSERT INTO words (tatar, russian, category, examples) VALUES (?, ?, ?, ?)";
-                String progressSql = "INSERT INTO user_progress (word_id) VALUES (?)";
-                
-                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                     PreparedStatement progressPstmt = conn.prepareStatement(progressSql)) {
-                    
-                    int added = 0;
-                    for (int i = 0; i < wordsArray.size(); i++) {
-                        com.google.gson.JsonObject wordObj = wordsArray.get(i).getAsJsonObject();
-                        
-                        String tatar = wordObj.get("tatar").getAsString();
-                        String russian = wordObj.get("russian").getAsString();
-                        String category = wordObj.has("category") ? wordObj.get("category").getAsString() : "Общее";
-                        
-                        String examplesJson = null;
-                        if (wordObj.has("examples") && wordObj.get("examples").isJsonArray()) {
-                            examplesJson = wordObj.get("examples").toString();
-                            System.out.println("  Word '" + tatar + "' has " + 
-                                wordObj.get("examples").getAsJsonArray().size() + " examples");
-                        }
-                        
-                        pstmt.setString(1, tatar);
-                        pstmt.setString(2, russian);
-                        pstmt.setString(3, category);
-                        pstmt.setString(4, examplesJson);
-                        pstmt.executeUpdate();
-                        
-                        try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                            if (rs.next()) {
-                                int wordId = rs.getInt(1);
-                                progressPstmt.setInt(1, wordId);
-                                progressPstmt.executeUpdate();
-                                added++;
-                            }
-                        }
-                    }
-                    conn.commit();
-                    System.out.println("✓✓✓ Successfully added " + added + " words from JSON!");
-                }
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-            
-        } catch (Exception e) {
-            System.err.println("Failed to import JSON: " + e.getMessage());
-            e.printStackTrace();
-            addSampleWords();
-        }
-    }
+  
     
     /**
      * Экспортирует все слова в JSON файл с сохранением примеров
@@ -370,7 +238,6 @@ public class DatabaseService {
     }
     
     private void migrateIfNeeded() throws SQLException {
-        // Добавляем колонку examples, если её нет
         if (!columnExists("examples")) {
             System.out.println("=== Adding examples column to words table ===");
             try (Statement stmt = getValidConnection().createStatement()) {
@@ -424,59 +291,7 @@ public class DatabaseService {
             lock.writeLock().unlock();
         }
     }
-    
-    private void addSampleWords() {
-        System.out.println("=== Adding sample words ===");
-        lock.writeLock().lock();
-        try {
-            Connection conn = getValidConnection();
-            String[][] samples = {
-                {"Исәнме", "Здравствуйте", "Приветствия"},
-                {"Сау бул", "До свидания", "Приветствия"},
-                {"Рәхмәт", "Спасибо", "Вежливость"},
-            };
-            
-            conn.setAutoCommit(false);
-            try {
-                String sql = "INSERT INTO words (tatar, russian, category, examples) VALUES (?, ?, ?, ?)";
-                String progressSql = "INSERT INTO user_progress (word_id) VALUES (?)";
-                
-                try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                     PreparedStatement progressPstmt = conn.prepareStatement(progressSql)) {
-                    
-                    for (String[] sample : samples) {
-                        pstmt.setString(1, sample[0]);
-                        pstmt.setString(2, sample[1]);
-                        pstmt.setString(3, sample[2]);
-                        pstmt.setString(4, null);
-                        pstmt.executeUpdate();
-                        
-                        try (ResultSet rs = pstmt.getGeneratedKeys()) {
-                            if (rs.next()) {
-                                int wordId = rs.getInt(1);
-                                progressPstmt.setInt(1, wordId);
-                                progressPstmt.executeUpdate();
-                            }
-                        }
-                    }
-                }
-                conn.commit();
-                System.out.println("Added sample words");
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            } finally {
-                conn.setAutoCommit(true);
-            }
-        } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to add sample words", e);
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-    
-    // ========== ПУБЛИЧНЫЕ МЕТОДЫ ==========
-    
+     
     /**
      * Добавляет слово и инициализирует прогресс в одной транзакции
      */
@@ -562,6 +377,7 @@ public class DatabaseService {
                     words.add(mapRowToWord(rs));
                 }
             }
+            LOGGER.info("getAllWords() returned " + words.size() + " words");
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Failed to get all words", e);
         } finally {
@@ -744,11 +560,74 @@ public class DatabaseService {
         }
     }
     
-    private void initProgressForWord(Connection conn, int wordId) throws SQLException {
-        String sql = "INSERT INTO user_progress (word_id) VALUES (?)";
-        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, wordId);
-            pstmt.executeUpdate();
+    public void importFromBackup(String backupFilePath) throws IOException {
+        WordsExport export = JsonUtils.loadFromFile(backupFilePath, WordsExport.class);
+        
+        if (export == null || export.getWords() == null) {
+            throw new IOException("Invalid backup file: no words found");
+        }
+        
+        System.out.println("📥 Importing " + export.getWords().size() + " words from backup");
+        System.out.println("   Version: " + export.getVersion());
+        System.out.println("   Export date: " + export.getExportDate());
+        System.out.println("   Categories: " + export.getCategories());
+        
+        lock.writeLock().lock();
+        try {
+            Connection conn = getValidConnection();
+            conn.setAutoCommit(false);
+            
+            try {
+                // Очищаем существующие данные 
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("DELETE FROM user_progress");
+                    stmt.execute("DELETE FROM words");
+                }
+                
+                // Импортируем слова
+                String sql = "INSERT INTO words (id, tatar, russian, category, examples) VALUES (?, ?, ?, ?, ?)";
+                String progressSql = "INSERT INTO user_progress (word_id, times_correct, times_wrong, last_reviewed, ease_factor) VALUES (?, ?, ?, ?, ?)";
+                
+                try (PreparedStatement pstmt = conn.prepareStatement(sql);
+                     PreparedStatement progressPstmt = conn.prepareStatement(progressSql)) {
+                    
+                    for (Word word : export.getWords()) {
+                        pstmt.setInt(1, word.getId());
+                        pstmt.setString(2, word.getTatar());
+                        pstmt.setString(3, word.getRussian());
+                        pstmt.setString(4, word.getCategory());
+                        
+                        // Сохраняем examples как JSON
+                        String examplesJson = null;
+                        if (word.getExamples() != null && !word.getExamples().isEmpty()) {
+                            examplesJson = JsonUtils.toJson(word.getExamples());
+                        }
+                        pstmt.setString(5, examplesJson);
+                        pstmt.executeUpdate();
+                        
+                        // Импортируем прогресс
+                        progressPstmt.setInt(1, word.getId());
+                        progressPstmt.setInt(2, word.getTimesCorrect());
+                        progressPstmt.setInt(3, word.getTimesWrong());
+                        progressPstmt.setString(4, word.getLastReviewed() != null ? word.getLastReviewed().toString() : null);
+                        progressPstmt.setDouble(5, word.getEaseFactor());
+                        progressPstmt.executeUpdate();
+                    }
+                }
+                
+                conn.commit();
+                System.out.println("✅ Import completed successfully");
+                
+            } catch (SQLException e) {
+                conn.rollback();
+                throw new IOException("Import failed: " + e.getMessage(), e);
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException e) {
+            throw new IOException("Database error during import: " + e.getMessage(), e);
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 }

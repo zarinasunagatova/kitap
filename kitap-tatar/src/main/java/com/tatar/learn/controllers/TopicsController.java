@@ -180,7 +180,7 @@ public class TopicsController implements Initializable {
     @FXML
     private void goBack() {
         Stage stage = (Stage) backButton.getScene().getWindow();
-        stage.close();  // Просто закрываем окно уроков, главное окно остаётся!
+        stage.close(); 
     }
 
     // Вспомогательный метод для безопасной загрузки CSS

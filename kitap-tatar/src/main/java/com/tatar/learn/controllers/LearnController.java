@@ -14,7 +14,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.animation.*;
 import javafx.util.Duration;
-
 import java.io.InputStream;
 import java.net.URL;
 import java.sql.SQLException;
@@ -22,7 +21,6 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
 
 public class LearnController implements Initializable {
     
@@ -46,19 +44,16 @@ public class LearnController implements Initializable {
     @FXML private VBox examplesContainer;
     @FXML private ScrollPane examplesScroll;
     @FXML private VBox examplesList;
-    
     private DatabaseService dbService;
     private TTSService ttsService;
-    private TopicsService topicsService;  // ← ДОБАВИТЬ
     private Topic currentTopic; 
     private List<Word> allWords;
-    private List<Word> dueWords;      // Слова для повторения сегодня
-    private List<Word> newWords;      // Новые слова
-    private Queue<Word> learningQueue; // Очередь обучения
+    private List<Word> dueWords;      
+    private List<Word> newWords;      
+    private Queue<Word> learningQueue; 
     private Word currentWord;
     private int currentIndex = 0;
     private boolean isFlipped = false;
-    private boolean databaseAvailable = false;
     private String currentFilterCategory = "Все категории";  
     private String currentMode = "cards";
     
@@ -73,7 +68,7 @@ public class LearnController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-    	topicsService = TopicsService.getInstance();  // ← ДОБАВИТЬ
+    	TopicsService.getInstance();
         // Инициализируем БД с обработкой ошибок
         if (!initDatabase()) {
             showDatabaseErrorAndDisable();
@@ -92,6 +87,9 @@ public class LearnController implements Initializable {
         
         if (learningQueue == null || learningQueue.isEmpty()) {
             showAlert("Нет слов", "Добавьте слова в словарь");
+            // Устанавливаем текст-заглушку, показывающую, что нет слов
+            tatarWordLabel.setText("❌ Нет слов");
+            russianWordLabel.setText("Пройдите уроки в разделе 'Уроки'");
             return;
         }
         
@@ -103,6 +101,8 @@ public class LearnController implements Initializable {
         
         updateProgress();
         currentFilterCategory = "Все категории";
+        
+        
     }
 
     
@@ -120,13 +120,11 @@ public class LearnController implements Initializable {
                 return false;
             }
             
-            databaseAvailable = true;
             return true;
             
         } catch (SQLException e) {
             System.err.println("Database init failed: " + e.getMessage());
             showErrorOnStatus("❌ Ошибка БД: " + e.getMessage());
-            databaseAvailable = false;
             return false;
         }
     }
@@ -161,7 +159,8 @@ public class LearnController implements Initializable {
      */
     private void loadWordsAndBuildQueue() {
         TopicsService topicsService = TopicsService.getInstance();
-        List<Word> learnedWords = topicsService.getAllLearnedWords();
+        // ИЗМЕНЕНИЕ: используем getAllAvailableWords() вместо getAllLearnedWords()
+        List<Word> learnedWords = topicsService.getAllAvailableWords();  // ← ИЗМЕНЕНО
         
         // Фильтруем только слова с корректным ID > 0
         allWords = new ArrayList<>();
@@ -191,10 +190,9 @@ public class LearnController implements Initializable {
         dueWords.sort((w1, w2) -> {
             int priority1 = getReviewPriority(w1, today);
             int priority2 = getReviewPriority(w2, today);
-            return Integer.compare(priority2, priority1); // Выше приоритет - первым
+            return Integer.compare(priority2, priority1); 
         });
         
-        // Сортируем новые слова (можно по алфавиту или случайно)
         Collections.shuffle(newWords);
         
         // Строим очередь обучения
@@ -230,7 +228,7 @@ public class LearnController implements Initializable {
         }
         
         if (word.getLastReviewed() == null) {
-            return true; // Никогда не повторяли - пора
+            return true; 
         }
         
         int interval = getNextInterval(word.getTimesCorrect());
@@ -386,31 +384,25 @@ public class LearnController implements Initializable {
             russianWordLabel.setText(currentWord.getRussian());
             showExamples(currentWord);
             
-            // Критически важно: принудительно вычисляем размеры
             cardBack.setVisible(true);
             cardBack.setManaged(true);
             
-            // Запрашиваем layout у родителя
             if (cardBack.getParent() != null) {
                 cardBack.getParent().applyCss();
                 cardBack.getParent().layout();
             }
             
-            // Фиксируем размеры после layout
             double targetWidth = cardBack.getWidth();
             double targetHeight = cardBack.getHeight();
             
-            // Убеждаемся, что размеры не нулевые
             if (targetWidth <= 0 || targetHeight <= 0) {
                 targetWidth = cardFront.getWidth();
                 targetHeight = cardFront.getHeight();
             }
             
-            // Применяем фиксированные размеры
             cardBack.setPrefSize(targetWidth, targetHeight);
             cardBack.setMinSize(targetWidth, targetHeight);
             
-            // Скрываем обратно
             cardBack.setVisible(false);
             cardBack.setManaged(false);
         }
@@ -418,20 +410,17 @@ public class LearnController implements Initializable {
         isAnimating = true;
         final boolean wasFlipped = isFlipped;
         
-        // Используем оба узла для плавной анимации
         ScaleTransition scaleOut = new ScaleTransition(Duration.millis(150), 
             wasFlipped ? cardBack : cardFront);
         scaleOut.setToX(0);
         scaleOut.setOnFinished(e -> {
             isFlipped = !wasFlipped;
             
-            // Меняем видимость
             cardFront.setVisible(!isFlipped);
             cardFront.setManaged(!isFlipped);
             cardBack.setVisible(isFlipped);
             cardBack.setManaged(isFlipped);
             
-            // Для обратной стороны сбрасываем масштаб X перед анимацией появления
             if (isFlipped) {
                 cardBack.setScaleX(0);
             } else {
@@ -565,13 +554,13 @@ public class LearnController implements Initializable {
     }
     
     private void previousWord() {
-        // В интервальном повторении нет смысла возвращаться назад
-        // Но для удобства показываем предыдущее слово из очереди
         showTemporaryMessage("⏪ Только вперед!", prevButton);
     }
     
     private void showCurrentWord() {
         if (learningQueue == null || learningQueue.isEmpty()) {
+            //tatarWordLabel.setText("📚 Нет слов для повторения");
+            //russianWordLabel.setText("Пройдите хотя бы один урок в разделе 'Уроки'");
             return;
         }
         
@@ -795,4 +784,50 @@ public class LearnController implements Initializable {
 	    
 	    updateQueueInfo();
 	}
+	
+
+	public void setWords(List<Word> words) {
+	    if (words == null || words.isEmpty()) {
+	        System.err.println("⚠️ LearnController.setWords: передан пустой список слов");
+	        return;
+	    }
+	    
+	    // Восстанавливаем очередь обучения из переданных слов
+	    this.learningQueue = new LinkedList<>(words);
+	    this.allWords = new ArrayList<>(words);
+	    
+	    // Пересчитываем due и new слова для корректной статистики
+	    this.dueWords = new ArrayList<>();
+	    this.newWords = new ArrayList<>();
+	    
+	    LocalDate today = LocalDate.now();
+	    for (Word word : allWords) {
+	        if (word.getTimesCorrect() > 0) {
+	            if (isWordDueForReview(word, today)) {
+	                dueWords.add(word);
+	            }
+	        } else {
+	            newWords.add(word);
+	        }
+	    }
+	    
+	    // Сбрасываем индексы
+	    this.currentIndex = 0;
+	    this.currentWord = learningQueue.peek();
+	    
+	    // Обновляем UI
+	    if (tatarWordLabel != null) {
+	        showCurrentWord();
+	        updateQueueInfo();
+	        updateProgress();
+	        
+	        // Сбрасываем состояние карточки (показываем лицевую сторону)
+	        if (isFlipped) {
+	            flipCard(); 
+	        }
+	        
+	        System.out.println("✅ LearnController: восстановлено " + learningQueue.size() + " слов для изучения");
+	    }
+	}
+	
 } 

@@ -4,16 +4,15 @@ import java.util.List;
 
 public class GrammarExercise {
     private int id;
-    private int ruleId;  // ДОБАВЛЯЕМ
+    private int ruleId;  
     private String question;
     private String correctAnswer;
     private String explanation;
     private String category;
     private String difficulty;
-    private String type;  // ДОБАВЛЯЕМ (multiple_choice, typing, matching)
-    private List<String> options;  // ДОБАВЛЯЕМ для multiple_choice
+    private String type;  
+    private List<String> options;  
     
-    // Пустой конструктор
     public GrammarExercise() {}
     
     // Конструктор со всеми полями

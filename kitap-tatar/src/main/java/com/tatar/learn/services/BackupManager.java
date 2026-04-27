@@ -192,25 +192,15 @@ public class BackupManager {
         
         List<Word> words = dbService.getAllWords();
         
+        //  Создаём полноценный WordsExport через утилиту
         WordsExport export = new WordsExport();
         export.setWords(words);
-        export.setCategories(extractCategories(words));
         export.setExportDate(LocalDate.now());
         export.setTotalWords(words.size());
+        // Статистика считается автоматически в setWords()
         
+        // Сохраняем через JsonUtils
         JsonUtils.saveToFile(export, fileName);
-    }
-    
-    private List<String> extractCategories(List<Word> words) {
-        if (words == null || words.isEmpty()) {
-            return List.of();
-        }
-        return words.stream()
-            .map(Word::getCategory)
-            .filter(c -> c != null && !c.isEmpty())
-            .distinct()
-            .sorted()
-            .collect(java.util.stream.Collectors.toList());
     }
     
     private void cleanOldBackups(int daysToKeep) {

@@ -52,7 +52,8 @@ public class TTSService {
     /**
      * Windows: поиск голоса через PowerShell/SAPI5
      */
-    private void detectWindowsVoice() {
+    @SuppressWarnings("deprecation")
+	private void detectWindowsVoice() {
         try {
             String command = "powershell -Command \"" +
                 "Add-Type -AssemblyName System.Speech; " +
@@ -204,7 +205,8 @@ public class TTSService {
                 tatarVoice, escapedText
             );
             
-            Process process = Runtime.getRuntime().exec(command);
+            @SuppressWarnings("deprecation")
+			Process process = Runtime.getRuntime().exec(command);
             new Thread(() -> {
                 try {
                     process.waitFor();

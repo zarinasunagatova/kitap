@@ -24,7 +24,6 @@ import java.util.*;
 
 public class TopicLearnController implements Initializable {
     
-    // ========== ПОЛЯ ИЗ FXML ==========
 	@FXML private TabPane lessonTabPane; 
     @FXML private Label topicIconLabel;
     @FXML private Label topicNameLabel;
@@ -110,7 +109,7 @@ public class TopicLearnController implements Initializable {
             topicNameTatarLabel.setText(nameTatar != null ? nameTatar : "");
         }
         
-        // ===== ВАЖНО: Правильная инициализация слов =====
+        // Правильная инициализация слов 
         wordsList = new ArrayList<>();
         if (topic.getWords() != null && !topic.getWords().isEmpty()) {
             wordsList.addAll(topic.getWords());

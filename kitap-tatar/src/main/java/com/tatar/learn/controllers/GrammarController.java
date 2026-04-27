@@ -42,9 +42,8 @@ public class GrammarController implements Initializable {
         // Берем ТОЛЬКО грамматику из пройденных тем
         allRules = topicsService.getGrammarFromCompletedTopics();
         
-        // Если пройденных тем нет - показываем пустое состояние
         if (allRules.isEmpty()) {
-            allRules = new ArrayList<>(); // Пустой список
+            allRules = new ArrayList<>(); 
         }
         
         currentRules = new ArrayList<>(allRules);
@@ -64,7 +63,6 @@ public class GrammarController implements Initializable {
     private void setupCategoryFilter() {
         categoryCombo.getItems().add("Все категории");
         
-        // ===== ИСПРАВЛЕНО: только категории из ПРОЙДЕННЫХ тем =====
         TopicsService topicsService = TopicsService.getInstance();
         Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
         
@@ -79,7 +77,6 @@ public class GrammarController implements Initializable {
         if (!availableCategories.isEmpty()) {
             categoryCombo.getItems().addAll(availableCategories);
         }
-        // ===== КОНЕЦ ИСПРАВЛЕНИЯ =====
         
         categoryCombo.getSelectionModel().selectFirst();
         categoryCombo.setOnAction(e -> filterByCategory());
@@ -123,7 +120,7 @@ public class GrammarController implements Initializable {
             topicsList.getSelectionModel().select(0);
             showRule(0);
         } else {
-            showEmptyState();  // ← ДОБАВИТЬ ЭТОТ ВЫЗОВ
+            showEmptyState();  
         }
     }
 

@@ -6,8 +6,13 @@ import com.tatar.learn.utils.JsonUtils;
 import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class TopicsService {
     private static TopicsService instance;
@@ -15,6 +20,8 @@ public class TopicsService {
     private List<Topic> allTopics;
     private Set<String> completedTopicNames;
     private DatabaseService dbService;
+    private static final Logger LOGGER = Logger.getLogger(TopicsService.class.getName());
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     
     private TopicsService() {
         prefs = Preferences.userNodeForPackage(TopicsService.class);
@@ -41,8 +48,8 @@ public class TopicsService {
     private void loadTopicsFromJson() {
         allTopics = new ArrayList<>();
         
-        // Загружаем слова из words.json
         Map<String, List<Word>> wordsByCategory = loadWordsFromJson();
+       
         
         // Загружаем грамматику из grammar.json
         Map<String, GrammarRule> grammarByCategory = loadGrammarFromJson();
@@ -92,6 +99,108 @@ public class TopicsService {
         }
     }
     
+    
+    @SuppressWarnings("unused")
+	private Map<String, List<Word>> loadWordsFromDatabase() {
+        Map<String, List<Word>> wordsByCategory = new HashMap<>();
+        
+        try {
+            if (dbService == null) {
+                dbService = DatabaseService.getInstance();
+            }
+            
+            List<Word> allDbWords = dbService.getAllWords();
+            
+            for (Word word : allDbWords) {
+                String category = word.getCategory();
+                if (category == null || category.isEmpty()) {
+                    category = "Общее";
+                }
+                wordsByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(word);
+            }
+            
+            System.out.println("✅ Загружено слов из БД: " + allDbWords.size());
+            
+        } catch (SQLException e) {
+            System.err.println("Ошибка загрузки слов из БД: " + e.getMessage());
+            return loadWordsFromJsonBackup();
+        }
+        
+        return wordsByCategory;
+    }
+
+    /**
+     * ✅ Резервный метод: загружает слова из JSON (только если БД пуста)
+     */
+    private Map<String, List<Word>> loadWordsFromJsonBackup() {
+        Map<String, List<Word>> wordsByCategory = new HashMap<>();
+        
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream("words.json");
+            if (is == null) {
+                is = getClass().getClassLoader().getResourceAsStream("data/words/words.json");
+            }
+            
+            if (is != null) {
+                String jsonContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                Type type = new TypeToken<WordsJsonFormat>(){}.getType();
+                WordsJsonFormat data = JsonUtils.fromJson(jsonContent, type);
+                
+                if (data != null && data.getWords() != null) {
+                    for (WordJson wj : data.getWords()) {
+                        String category = wj.getCategory();
+                        if (category == null || category.isEmpty()) {
+                            category = "Общее";
+                        }
+                        
+                        Word word = new Word(
+                            wj.getTatar(),
+                            wj.getRussian(),
+                            category,
+                            wj.getExamples() != null ? wj.getExamples() : new ArrayList<>(),
+                            1
+                        );
+                        
+                        wordsByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(word);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load words from JSON: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        System.out.println("⚠️ Загружено слов из JSON (резерв): " + 
+            wordsByCategory.values().stream().mapToInt(List::size).sum());
+        
+        // Сохраняем JSON-слова в БД для будущих запусков
+        saveJsonWordsToDatabase(wordsByCategory);
+        
+        return wordsByCategory;
+    }
+
+    /**
+     * Сохраняет слова из JSON в БД (при первом запуске)
+     */
+    private void saveJsonWordsToDatabase(Map<String, List<Word>> wordsByCategory) {
+        try {
+            if (dbService == null) {
+                dbService = DatabaseService.getInstance();
+            }
+            
+            int addedCount = 0;
+            for (List<Word> categoryWords : wordsByCategory.values()) {
+                for (Word word : categoryWords) {
+                    dbService.addWord(word);
+                    addedCount++;
+                }
+            }
+            System.out.println("✅ Сохранено в БД новых слов: " + addedCount);
+            
+        } catch (SQLException e) {
+            System.err.println("Ошибка сохранения слов в БД: " + e.getMessage());
+        }
+    }
     private Map<String, List<Word>> loadWordsFromJson() {
         Map<String, List<Word>> wordsByCategory = new HashMap<>();
         
@@ -362,31 +471,37 @@ public class TopicsService {
     private void syncTopicWordsToDatabase(String topicName) {
         if (dbService == null) return;
         
+        List<Word> existingDbWords = dbService.getAllWords(); 
+        Map<String, Word> existingWordMap = new HashMap<>();
+        for (Word w : existingDbWords) {
+            existingWordMap.put(w.getTatar().toLowerCase(), w);
+        }
+        
         for (Topic topic : allTopics) {
             if (topic.getName().equals(topicName)) {
                 for (Word word : topic.getWords()) {
-                    boolean exists = false;
-                    for (Word existing : dbService.getAllWords()) {
-                        if (existing.getTatar().equalsIgnoreCase(word.getTatar())) {
-                            exists = true;
-                            word.setId(existing.getId()); // ← ВАЖНО: копируем ID из существующего слова
-                            word.setTimesCorrect(existing.getTimesCorrect());
-                            word.setTimesWrong(existing.getTimesWrong());
-                            word.setLastReviewed(existing.getLastReviewed());
-                            word.setEaseFactor(existing.getEaseFactor());
-                            break;
-                        }
-                    }
-                    if (!exists) {
-                        dbService.addWord(word);
-                        // После addWord у слова появится ID
-                        System.out.println("Добавлено слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
+                    Word existing = existingWordMap.get(word.getTatar().toLowerCase());
+                    
+                    if (existing != null) {
+                        word.setId(existing.getId());
+                        word.setTimesCorrect(existing.getTimesCorrect());
+                        word.setTimesWrong(existing.getTimesWrong());
+                        word.setLastReviewed(existing.getLastReviewed());
+                        word.setEaseFactor(existing.getEaseFactor());
+                        
+                        dbService.updateWord(word); 
+                        System.out.println("🔄 Обновлено слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
+                    } else {
+                        dbService.addWord(word); 
+                        System.out.println("➕ Добавлено новое слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
                     }
                 }
                 break;
             }
         }
+         
     }
+   
     
     public List<String> getCompletedTopicNames() {
         return new ArrayList<>(completedTopicNames);
@@ -415,6 +530,91 @@ public class TopicsService {
         return (completed * 100) / allTopics.size();
     }
     
+    public List<Word> getAllAvailableWords() {
+        lock.readLock().lock();
+        try {
+            if (dbService == null) {
+                dbService = DatabaseService.getInstance();
+            }
+            
+            List<Word> allDbWords = dbService.getAllWords();
+            
+            // только слова из БД, без смешивания с JSON
+            List<Word> validWords = allDbWords.stream()
+                .filter(w -> w.getId() > 0)
+                .collect(Collectors.toList());
+            
+            System.out.println("=== getAllAvailableWords() вернуло " + validWords.size() + " слов ===");
+            return validWords;
+            
+        } catch (SQLException e) {
+            LOGGER.log(Level.SEVERE, "Failed to get all available words", e);
+            return new ArrayList<>();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+  
+    public void refreshCache() {
+        lock.writeLock().lock();
+        try {
+            LOGGER.info("Refreshing cache...");
+            
+            // Перезагружаем темы из JSON
+            loadTopicsFromJson();
+            
+            // Перезагружаем прогресс
+            loadCompletedTopics();
+            
+            // Принудительно синхронизируем слова из пройденных тем с БД
+            for (String topicName : completedTopicNames) {
+                syncTopicWordsToDatabase(topicName);
+            }
+            
+            LOGGER.info("Cache refreshed successfully");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to refresh cache", e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    /**
+     * Загружает прогресс из Preferences
+     */
+    private void loadCompletedTopics() {
+        lock.writeLock().lock();
+        try {
+            if (completedTopicNames == null) {
+                completedTopicNames = new HashSet<>();
+            }
+            
+            String saved = prefs.get("completed_topics", "");
+            if (!saved.isEmpty()) {
+                completedTopicNames.clear();
+                completedTopicNames.addAll(Arrays.asList(saved.split(",")));
+            }
+            
+            // Обновляем статус тем
+            for (int i = 0; i < allTopics.size(); i++) {
+                Topic topic = allTopics.get(i);
+                topic.setCompleted(completedTopicNames.contains(topic.getName()));
+                
+                if (i == 0) {
+                    topic.setUnlocked(true);
+                } else {
+                    Topic prevTopic = allTopics.get(i - 1);
+                    topic.setUnlocked(prevTopic.isCompleted());
+                }
+            }
+            
+            LOGGER.info("Loaded " + completedTopicNames.size() + " completed topics");
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to load completed topics", e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
     // ========== ВСПОМОГАТЕЛЬНЫЕ КЛАССЫ ДЛЯ JSON ==========
     
     static class WordsJsonFormat {
@@ -425,7 +625,6 @@ public class TopicsService {
     }
     
     static class WordJson {
-        private int id;
         private String tatar;
         private String russian;
         private String category;
@@ -437,7 +636,6 @@ public class TopicsService {
     }
     
     static class GrammarJsonFormat {
-        private List<String> categories;
         private List<GrammarRuleJson> rules;
         public List<GrammarRuleJson> getRules() { return rules; }
     }
@@ -446,11 +644,14 @@ public class TopicsService {
         private int id;
         private String title;
         private String category;
-        private String level;
+        @SuppressWarnings("unused")
+		private String level;
         private String explanation;
         private List<ExamplePair> examples;
-        private String notes;
-        private List<Integer> exercises;
+        @SuppressWarnings("unused")
+		private String notes;
+        @SuppressWarnings("unused")
+		private List<Integer> exercises;
         public int getId() { return id; }
         public String getTitle() { return title; }
         public String getCategory() { return category; }
@@ -547,4 +748,5 @@ public class TopicsService {
             topic.setUnlocked(i == 0);
         }
     }
+    
 }

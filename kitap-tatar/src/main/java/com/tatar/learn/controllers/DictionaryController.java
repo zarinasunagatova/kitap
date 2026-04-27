@@ -12,14 +12,20 @@ import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.geometry.Insets;
+
+import java.io.InputStream;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.ArrayList;
 
 public class DictionaryController implements Initializable {
     
@@ -27,6 +33,7 @@ public class DictionaryController implements Initializable {
     @FXML private TableColumn<Word, Integer> idColumn;
     @FXML private TableColumn<Word, String> tatarColumn;
     @FXML private TableColumn<Word, String> russianColumn;
+    @FXML private TableColumn<Word, String> examplesColumn;
     @FXML private TableColumn<Word, Number> timesCorrectColumn;  
     @FXML private TableColumn<Word, Void> actionsColumn;
     @FXML private TextField searchField;
@@ -43,7 +50,6 @@ public class DictionaryController implements Initializable {
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        // Инициализируем БД с обработкой ошибок
         if (!initDatabase()) {
             showDatabaseErrorAndDisable();
             return;
@@ -56,10 +62,6 @@ public class DictionaryController implements Initializable {
         loadWords();
     }
     
-    /**
-     * Инициализация базы данных
-     * @return true если успешно, false если ошибка
-     */
     private boolean initDatabase() {
         try {
             dbService = DatabaseService.getInstance();
@@ -86,17 +88,12 @@ public class DictionaryController implements Initializable {
         }
     }
     
-    /**
-     * Показывает ошибку и отключает функциональность
-     */
     private void showDatabaseErrorAndDisable() {
-        // Отключаем кнопки
         addButton.setDisable(true);
         searchButton.setDisable(true);
         clearButton.setDisable(true);
         searchField.setDisable(true);
         
-        // Показываем сообщение в таблице
         wordsTable.setPlaceholder(new Label(
             "❌ База данных недоступна\n\n" +
             "Пожалуйста, перезапустите приложение.\n" +
@@ -129,6 +126,46 @@ public class DictionaryController implements Initializable {
         tatarColumn.setCellValueFactory(new PropertyValueFactory<>("tatar"));
         russianColumn.setCellValueFactory(new PropertyValueFactory<>("russian"));
         
+        // Колонка с примерами
+        examplesColumn.setCellValueFactory(cellData -> {
+            Word word = cellData.getValue();
+            if (word.getExamples() != null && !word.getExamples().isEmpty()) {
+                return new javafx.beans.property.SimpleStringProperty(
+                    word.getExamples().size() + ""
+                );
+            }
+            return new javafx.beans.property.SimpleStringProperty("0");
+        });
+        
+        examplesColumn.setCellFactory(col -> new TableCell<Word, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setTooltip(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    Word word = getTableView().getItems().get(getIndex());
+                    if (word.getExamples() != null && !word.getExamples().isEmpty()) {
+                        StringBuilder tooltipText = new StringBuilder("Примеры:\n");
+                        for (int i = 0; i < word.getExamples().size(); i++) {
+                            tooltipText.append(i + 1).append(". ").append(word.getExamples().get(i)).append("\n");
+                        }
+                        Tooltip tooltip = new Tooltip(tooltipText.toString().trim());
+                        tooltip.setMaxWidth(400);
+                        tooltip.setWrapText(true);
+                        setTooltip(tooltip);
+                        setStyle("-fx-text-fill: #2c7a4c;");
+                    } else {
+                        setTooltip(null);
+                        setStyle("-fx-text-fill: #999;");
+                    }
+                }
+            }
+        });
+        
         timesCorrectColumn.setCellValueFactory(cellData -> 
             new javafx.beans.property.SimpleIntegerProperty(
                 cellData.getValue().getTimesCorrect()
@@ -144,7 +181,7 @@ public class DictionaryController implements Initializable {
                     getStyleClass().removeAll("progress-high", "progress-medium", "progress-low", "progress-zero");
                 } else {
                     int timesCorrect = item.intValue();
-                    setText(timesCorrect + " раз");
+                    setText(timesCorrect + "");
                     
                     getStyleClass().removeAll("progress-high", "progress-medium", "progress-low", "progress-zero");
                     getStyleClass().add(getTimesCorrectStyleClass(timesCorrect));
@@ -230,7 +267,6 @@ public class DictionaryController implements Initializable {
         });
     }
     
- // Добавьте этот метод в DictionaryController.java
     private void loadWords() {
         if (!databaseAvailable) {
             showDatabaseErrorAndDisable();
@@ -241,13 +277,12 @@ public class DictionaryController implements Initializable {
             statusLabel.setText("Загрузка слов...");
             wordList.clear();
             
-            // Загружаем ТОЛЬКО слова из пройденных тем
             TopicsService topicsService = TopicsService.getInstance();
-            List<Word> learnedWords = topicsService.getAllLearnedWords();
+            List<Word> allWords = topicsService.getAllAvailableWords();
             
-            wordList.addAll(learnedWords);
+            wordList.addAll(allWords);
             
-            System.out.println("Загружено слов из пройденных тем: " + wordList.size());
+            System.out.println("Загружено слов из БД и пройденных тем: " + wordList.size());
             
             filteredData = new FilteredList<>(wordList, p -> true);
             SortedList<Word> sortedData = new SortedList<>(filteredData);
@@ -255,7 +290,7 @@ public class DictionaryController implements Initializable {
             
             wordsTable.setItems(sortedData);
             updateCountLabel();
-            statusLabel.setText("✅ Загружено " + wordList.size() + " слов из пройденных тем");
+            statusLabel.setText("✅ Загружено " + wordList.size() + " слов");
         } catch (Exception e) {
             statusLabel.setText("❌ Ошибка загрузки слов: " + e.getMessage());
             e.printStackTrace();
@@ -272,7 +307,9 @@ public class DictionaryController implements Initializable {
                 return true;
             }
             return word.getTatar().toLowerCase().contains(searchText) ||
-                   word.getRussian().toLowerCase().contains(searchText);
+                   word.getRussian().toLowerCase().contains(searchText) ||
+                   (word.getExamples() != null && word.getExamples().stream()
+                       .anyMatch(ex -> ex.toLowerCase().contains(searchText)));
         });
         
         updateCountLabel();
@@ -284,7 +321,6 @@ public class DictionaryController implements Initializable {
     }
 
     private boolean validateWordFields(String tatar, String russian) {
-        // Проверка на null и пустоту после trim
         if (tatar == null || tatar.trim().isEmpty()) {
             showValidationError("Татарское слово не может быть пустым!");
             return false;
@@ -295,7 +331,6 @@ public class DictionaryController implements Initializable {
             return false;
         }
         
-        // Проверка минимальной длины (опционально)
         if (tatar.trim().length() < 2) {
             showValidationError("Татарское слово должно содержать хотя бы 2 буквы!");
             return false;
@@ -306,7 +341,6 @@ public class DictionaryController implements Initializable {
             return false;
         }
         
-        // Проверка на недопустимые символы (опционально)
         if (!tatar.trim().matches("^[a-zA-Zа-яА-ЯёЁәӘөӨҗҖңҢүҮһҺ\\s\\-']+$")) {
             showValidationError("Татарское слово содержит недопустимые символы!");
             return false;
@@ -320,15 +354,7 @@ public class DictionaryController implements Initializable {
         return true;
     }
 
- 
-    private void showValidationError(String message) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Ошибка валидации");
-        alert.setHeaderText("Некорректные данные");
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-    
+
     private void updateCountLabel() {
         int filteredCount = filteredData != null ? filteredData.size() : 0;
         int totalCount = wordList.size();
@@ -377,47 +403,44 @@ public class DictionaryController implements Initializable {
         Dialog<Word> dialog = new Dialog<>();
         dialog.setTitle("Редактирование слова");
         dialog.setHeaderText("Редактирование: " + word.getTatar());
-        
+        setDialogIcon(dialog);
+
         ButtonType saveButtonType = new ButtonType("Сохранить", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
         
-        // Отключаем кнопку "Сохранить" пока поля не заполнены
         Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
         saveButton.setDisable(true);
         
+        // Основной контейнер
+        VBox mainContainer = new VBox(10);
+        mainContainer.setPadding(new Insets(15));
+        
+        // Основные поля
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
+        grid.setPadding(new Insets(10, 0, 10, 0));
         
         TextField tatarField = new TextField(word.getTatar());
         TextField russianField = new TextField(word.getRussian());
         TextField categoryField = new TextField(word.getCategory());
         
-        // Валидация в реальном времени
         tatarField.textProperty().addListener((obs, old, val) -> {
             boolean isValid = !val.trim().isEmpty() && !russianField.getText().trim().isEmpty();
             saveButton.setDisable(!isValid);
-            
-            if (val.trim().isEmpty()) {
-                tatarField.setStyle("-fx-border-color: #e8a898; -fx-border-radius: 3;");
-            } else {
-                tatarField.setStyle("-fx-border-color: #7cb87a; -fx-border-radius: 3;");
-            }
+            tatarField.setStyle(val.trim().isEmpty() ? 
+                "-fx-border-color: #e8a898; -fx-border-radius: 3;" : 
+                "-fx-border-color: #7cb87a; -fx-border-radius: 3;");
         });
         
         russianField.textProperty().addListener((obs, old, val) -> {
             boolean isValid = !tatarField.getText().trim().isEmpty() && !val.trim().isEmpty();
             saveButton.setDisable(!isValid);
-            
-            if (val.trim().isEmpty()) {
-                russianField.setStyle("-fx-border-color: #e8a898; -fx-border-radius: 3;");
-            } else {
-                russianField.setStyle("-fx-border-color: #7cb87a; -fx-border-radius: 3;");
-            }
+            russianField.setStyle(val.trim().isEmpty() ? 
+                "-fx-border-color: #e8a898; -fx-border-radius: 3;" : 
+                "-fx-border-color: #7cb87a; -fx-border-radius: 3;");
         });
         
-        // Инициализируем состояние кнопки
         saveButton.setDisable(tatarField.getText().trim().isEmpty() || 
                               russianField.getText().trim().isEmpty());
         
@@ -432,7 +455,118 @@ public class DictionaryController implements Initializable {
         requiredHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #888;");
         grid.add(requiredHint, 1, 3);
         
-        dialog.getDialogPane().setContent(grid);
+        // Секция примеров
+        Label examplesLabel = new Label("📖 Примеры употребления:");
+        examplesLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
+        
+        Label examplesHint = new Label("Добавьте примеры использования слова в предложениях.");
+        examplesHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #888; -fx-wrap-text: true;");
+        
+        ListView<String> examplesListView = new ListView<>();
+        ObservableList<String> examplesObservable = FXCollections.observableArrayList(
+            word.getExamples() != null ? word.getExamples() : new ArrayList<>()
+        );
+        examplesListView.setItems(examplesObservable);
+        examplesListView.setPrefHeight(120);
+        examplesListView.setPlaceholder(new Label("Нет примеров. Добавьте новые ниже."));
+        
+        // Кнопки управления примерами
+        HBox exampleButtonsBox = new HBox(5);
+        
+        Button editExampleButton = new Button("✎ Изменить");
+        editExampleButton.setOnAction(e -> {
+            String selected = examplesListView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                TextInputDialog inputDialog = new TextInputDialog(selected);
+                inputDialog.setTitle("Редактирование примера");
+                inputDialog.setHeaderText("Измените пример употребления");
+                inputDialog.setContentText("Пример:");
+                inputDialog.getDialogPane().setPrefWidth(500);
+                
+                Optional<String> result = inputDialog.showAndWait();
+                result.ifPresent(newExample -> {
+                    if (!newExample.trim().isEmpty() && newExample.trim().length() >= 5) {
+                        int index = examplesObservable.indexOf(selected);
+                        if (index >= 0) {
+                            examplesObservable.set(index, newExample.trim());
+                        }
+                    }
+                });
+            }
+        });
+        
+        Button removeExampleButton = new Button("🗑 Удалить");
+        removeExampleButton.setOnAction(e -> {
+            String selected = examplesListView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                examplesObservable.remove(selected);
+            }
+        });
+        
+        Button moveUpButton = new Button("▲");
+        moveUpButton.setTooltip(new Tooltip("Переместить вверх"));
+        moveUpButton.setOnAction(e -> {
+            int selectedIndex = examplesListView.getSelectionModel().getSelectedIndex();
+            if (selectedIndex > 0) {
+                String item = examplesObservable.remove(selectedIndex);
+                examplesObservable.add(selectedIndex - 1, item);
+                examplesListView.getSelectionModel().select(selectedIndex - 1);
+            }
+        });
+        
+        Button moveDownButton = new Button("▼");
+        moveDownButton.setTooltip(new Tooltip("Переместить вниз"));
+        moveDownButton.setOnAction(e -> {
+            int selectedIndex = examplesListView.getSelectionModel().getSelectedIndex();
+            if (selectedIndex >= 0 && selectedIndex < examplesObservable.size() - 1) {
+                String item = examplesObservable.remove(selectedIndex);
+                examplesObservable.add(selectedIndex + 1, item);
+                examplesListView.getSelectionModel().select(selectedIndex + 1);
+            }
+        });
+        
+        exampleButtonsBox.getChildren().addAll(editExampleButton, removeExampleButton, 
+                                               moveUpButton, moveDownButton);
+        
+        // Добавление нового примера
+        HBox addExampleBox = new HBox(5);
+        TextField newExampleField = new TextField();
+        newExampleField.setPromptText("Введите пример употребления...");
+        newExampleField.setPrefWidth(350);
+        
+        Button addExampleButton = new Button("➕");
+        addExampleButton.setOnAction(e -> {
+            String newExample = newExampleField.getText().trim();
+            if (!newExample.isEmpty() && newExample.length() >= 5) {
+                examplesObservable.add(newExample);
+                newExampleField.clear();
+                newExampleField.requestFocus();
+            }
+        });
+        
+        newExampleField.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                addExampleButton.fire();
+            }
+        });
+        
+        addExampleBox.getChildren().addAll(newExampleField, addExampleButton);
+        
+        mainContainer.getChildren().addAll(
+            grid,
+            new Separator(),
+            examplesLabel,
+            examplesHint,
+            examplesListView,
+            exampleButtonsBox,
+            addExampleBox
+        );
+        
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefViewportHeight(500);
+        
+        dialog.getDialogPane().setContent(scrollPane);
         
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
@@ -440,7 +574,6 @@ public class DictionaryController implements Initializable {
                 String russian = russianField.getText();
                 String category = categoryField.getText();
                 
-                // Валидация перед сохранением
                 if (!validateWordFields(tatar, russian)) {
                     return null;
                 }
@@ -448,6 +581,8 @@ public class DictionaryController implements Initializable {
                 word.setTatar(tatar.trim());
                 word.setRussian(russian.trim());
                 word.setCategory((category == null || category.trim().isEmpty()) ? "Общее" : category.trim());
+                word.setExamples(new ArrayList<>(examplesObservable));
+                
                 return word;
             }
             return null;
@@ -458,7 +593,9 @@ public class DictionaryController implements Initializable {
             try {
                 dbService.updateWord(updatedWord);
                 loadWords();
-                statusLabel.setText("✅ Слово обновлено: " + updatedWord.getTatar());
+                int examplesCount = updatedWord.getExamples() != null ? updatedWord.getExamples().size() : 0;
+                statusLabel.setText("✅ Слово обновлено: " + updatedWord.getTatar() + 
+                                  (examplesCount > 0 ? " (" + examplesCount + " )" : ""));
             } catch (Exception e) {
                 statusLabel.setText("❌ Ошибка обновления: " + e.getMessage());
                 showValidationError("Не удалось обновить слово: " + e.getMessage());
@@ -476,7 +613,7 @@ public class DictionaryController implements Initializable {
         confirm.setTitle("Удаление слова");
         confirm.setHeaderText("Удалить слово: " + word.getTatar() + "?");
         confirm.setContentText("Это действие нельзя отменить!");
-        
+        setDialogIcon(confirm);
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
@@ -514,7 +651,7 @@ public class DictionaryController implements Initializable {
         dialog.setTitle("Добавление слова");
         dialog.setHeaderText("Новое слово");
         dialog.getDialogPane().getStyleClass().add("dialog-pane");
-        
+        setDialogIcon(dialog);
         try {
             URL cssUrl = getClass().getResource("/styles/main.css");
             if (cssUrl != null) {
@@ -527,14 +664,18 @@ public class DictionaryController implements Initializable {
         ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
         
-        // Отключаем кнопку "Добавить" пока поля не заполнены (опционально)
-        Button addButton = (Button) dialog.getDialogPane().lookupButton(addButtonType);
-        addButton.setDisable(true);
+        Button addBtn = (Button) dialog.getDialogPane().lookupButton(addButtonType);
+        addBtn.setDisable(true);
         
+        // Основной контейнер
+        VBox mainContainer = new VBox(10);
+        mainContainer.setPadding(new Insets(15));
+        
+        // Основные поля
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
+        grid.setPadding(new Insets(10, 0, 10, 0));
         
         TextField tatarField = new TextField();
         tatarField.setPromptText("Татарское слово (обязательно)");
@@ -543,36 +684,21 @@ public class DictionaryController implements Initializable {
         TextField categoryField = new TextField();
         categoryField.setPromptText("Категория (например, Приветствия)");
         
-        // Добавляем стили для обязательных полей
-        tatarField.setStyle("-fx-border-color: #ccc; -fx-border-radius: 3;");
-        russianField.setStyle("-fx-border-color: #ccc; -fx-border-radius: 3;");
-        
-        // Валидация в реальном времени (подсветка пустых полей)
         tatarField.textProperty().addListener((obs, old, val) -> {
             boolean isValid = !val.trim().isEmpty() && !russianField.getText().trim().isEmpty();
-            addButton.setDisable(!isValid);
-            
-            if (val.trim().isEmpty()) {
-                tatarField.setStyle("-fx-border-color: #e8a898; -fx-border-radius: 3;");
-            } else {
-                tatarField.setStyle("-fx-border-color: #7cb87a; -fx-border-radius: 3;");
-            }
+            addBtn.setDisable(!isValid);
+            tatarField.setStyle(val.trim().isEmpty() ? 
+                "-fx-border-color: #e8a898; -fx-border-radius: 3;" : 
+                "-fx-border-color: #7cb87a; -fx-border-radius: 3;");
         });
         
         russianField.textProperty().addListener((obs, old, val) -> {
             boolean isValid = !tatarField.getText().trim().isEmpty() && !val.trim().isEmpty();
-            addButton.setDisable(!isValid);
-            
-            if (val.trim().isEmpty()) {
-                russianField.setStyle("-fx-border-color: #e8a898; -fx-border-radius: 3;");
-            } else {
-                russianField.setStyle("-fx-border-color: #7cb87a; -fx-border-radius: 3;");
-            }
+            addBtn.setDisable(!isValid);
+            russianField.setStyle(val.trim().isEmpty() ? 
+                "-fx-border-color: #e8a898; -fx-border-radius: 3;" : 
+                "-fx-border-color: #7cb87a; -fx-border-radius: 3;");
         });
-        
-        // Label для подсказки
-        Label requiredHint = new Label("* обязательные поля");
-        requiredHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #888;");
         
         grid.add(new Label("Татарча:*"), 0, 0);
         grid.add(tatarField, 1, 0);
@@ -580,18 +706,75 @@ public class DictionaryController implements Initializable {
         grid.add(russianField, 1, 1);
         grid.add(new Label("Категория:"), 0, 2);
         grid.add(categoryField, 1, 2);
+        
+        Label requiredHint = new Label("* обязательные поля");
+        requiredHint.setStyle("-fx-font-size: 11px; -fx-text-fill: #888;");
         grid.add(requiredHint, 1, 3);
         
-        dialog.getDialogPane().setContent(grid);
+        // Секция примеров
+        Label examplesLabel = new Label("📖 Примеры употребления (опционально):");
+        examplesLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 10 0 5 0;");
         
-        // Валидация при нажатии кнопки
+        ListView<String> examplesListView = new ListView<>();
+        ObservableList<String> examplesObservable = FXCollections.observableArrayList();
+        examplesListView.setItems(examplesObservable);
+        examplesListView.setPrefHeight(120);
+        examplesListView.setPlaceholder(new Label("Пока нет примеров"));
+        
+        Button removeExampleButton = new Button("🗑 Удалить выбранный");
+        removeExampleButton.setOnAction(e -> {
+            String selected = examplesListView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                examplesObservable.remove(selected);
+            }
+        });
+        
+        HBox addExampleBox = new HBox(5);
+        TextField newExampleField = new TextField();
+        newExampleField.setPromptText("Пример употребления в предложении...");
+        newExampleField.setPrefWidth(350);
+        
+        Button addExampleButton = new Button("➕");
+        addExampleButton.setMinWidth(35);  
+        addExampleButton.setPrefWidth(35); 
+        addExampleButton.setOnAction(e -> {
+            String example = newExampleField.getText().trim();
+            if (!example.isEmpty() && example.length() >= 5) {
+                examplesObservable.add(example);
+                newExampleField.clear();
+                newExampleField.requestFocus();
+            }
+        });
+        
+        newExampleField.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                addExampleButton.fire();
+            }
+        });
+        
+        addExampleBox.getChildren().addAll(newExampleField, addExampleButton);
+        
+        mainContainer.getChildren().addAll(
+            grid,
+            new Separator(),
+            examplesLabel,
+            examplesListView,
+            removeExampleButton,
+            addExampleBox
+        );
+        
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setPrefViewportHeight(450);
+        
+        dialog.getDialogPane().setContent(scrollPane);
+        
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == addButtonType) {
                 String tatar = tatarField.getText();
                 String russian = russianField.getText();
                 String category = categoryField.getText();
                 
-                // Двойная проверка перед сохранением
                 if (!validateWordFields(tatar, russian)) {
                     return null;
                 }
@@ -599,7 +782,10 @@ public class DictionaryController implements Initializable {
                 String cleanCategory = (category == null || category.trim().isEmpty()) 
                     ? "Общее" : category.trim();
                 
-                return new Word(tatar.trim(), russian.trim(), cleanCategory);
+                Word newWord = new Word(tatar.trim(), russian.trim(), cleanCategory);
+                newWord.setExamples(new ArrayList<>(examplesObservable));
+                
+                return newWord;
             }
             return null;
         });
@@ -608,12 +794,71 @@ public class DictionaryController implements Initializable {
         result.ifPresent(word -> {
             try {
                 dbService.addWord(word);
+                TopicsService.getInstance().refreshCache();
                 loadWords();
-                statusLabel.setText("✅ Слово добавлено: " + word.getTatar());
+                int examplesCount = word.getExamples() != null ? word.getExamples().size() : 0;
+                statusLabel.setText("✅ Слово добавлено: " + word.getTatar() + 
+                                  (examplesCount > 0 ? " (" + examplesCount + ")" : ""));
             } catch (Exception e) {
                 statusLabel.setText("❌ Ошибка добавления: " + e.getMessage());
                 showValidationError("Не удалось добавить слово: " + e.getMessage());
             }
         });
+    }
+    
+    /**
+     * Загружает иконку для диалоговых окон
+     */
+    private Image loadDialogIcon() {
+        try {
+            InputStream is = getClass().getResourceAsStream("/images/kitap.png");
+            if (is == null) {
+                is = getClass().getClassLoader().getResourceAsStream("images/kitap.png");
+            }
+            if (is != null) {
+                return new Image(is);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Устанавливает иконку для диалогового окна
+     */
+    private void setAlertIcon(Alert alert) {
+        try {
+            Image icon = loadDialogIcon();
+            if (icon != null) {
+                Stage stage = (Stage) alert.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Устанавливает иконку для диалога редактирования/добавления
+     */
+    private void setDialogIcon(Dialog<?> dialog) {
+        try {
+            Image icon = loadDialogIcon();
+            if (icon != null) {
+                Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+                stage.getIcons().add(icon);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Не удалось установить иконку для диалога: " + e.getMessage());
+        }
+    }
+    private void showValidationError(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("Ошибка валидации");
+        alert.setHeaderText("Некорректные данные");
+        alert.setContentText(message);
+        setAlertIcon(alert); 
+        alert.showAndWait();
     }
 }

@@ -35,12 +35,13 @@
         <Button fx:id="addButton" prefHeight="26.0" prefWidth="205.0" styleClass="action-button" text="➕ Добавить слово" />
     </HBox>
     
-    <!-- Таблица со словами - увеличены колонки -->
+    <!-- Таблица со словами -->
     <TableView fx:id="wordsTable" VBox.vgrow="ALWAYS">
         <columns>
             <TableColumn fx:id="idColumn" maxWidth="60" minWidth="50" text="ID" />
-            <TableColumn fx:id="tatarColumn" minWidth="200" prefWidth="250" text="Татарча" />
-            <TableColumn fx:id="russianColumn" minWidth="200" prefWidth="250" text="Русский" />
+            <TableColumn fx:id="tatarColumn" minWidth="150" prefWidth="200" text="Татарча" />
+            <TableColumn fx:id="russianColumn" minWidth="150" prefWidth="200" text="Русский" />
+            <TableColumn fx:id="examplesColumn" minWidth="100" prefWidth="150" text="Примеры" />
             <TableColumn fx:id="timesCorrectColumn" maxWidth="120" minWidth="100" text="Правильно" />
             <TableColumn fx:id="actionsColumn" maxWidth="300" minWidth="250" text="Действия" />
         </columns>

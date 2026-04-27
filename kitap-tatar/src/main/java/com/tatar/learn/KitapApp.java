@@ -22,8 +22,6 @@ public class KitapApp extends Application {
     
     private BackupManager backupManager;
     private DatabaseService dbService;
-    private boolean databaseInitFailed = false;
-    
     static {
         System.setProperty("javafx.embed.singleThread", "true");
         System.setProperty("prism.order", "sw");
@@ -67,24 +65,20 @@ public class KitapApp extends Application {
             // Проверяем, что БД действительно работает
             if (dbService == null) {
                 System.err.println("❌ DatabaseService.getInstance() вернул null");
-                databaseInitFailed = true;
                 return false;
             }
             
             // Проверяем здоровье БД
             if (!dbService.isHealthy()) {
                 System.err.println("❌ Database is not healthy");
-                databaseInitFailed = true;
                 return false;
             }
             
             System.out.println("✅ Database initialized successfully");
-            databaseInitFailed = false;
             return true;
             
         } catch (SQLException e) {
             System.err.println("❌ Database initialization failed: " + e.getMessage());
-            databaseInitFailed = true;
             return false;
         }
     }
@@ -278,30 +272,6 @@ public class KitapApp extends Application {
         stage.show();
     }
     
-    /**
-     * Показывает fallback окно (если FXML не загрузился)
-     */
-    private void showFallbackWindow(Stage stage) {
-        Label label = new Label("Китап - Татар теле");
-        label.setStyle("-fx-font-size: 24px; -fx-text-fill: #2B6E4C; -fx-font-weight: bold;");
-        
-        TextArea errorArea = new TextArea();
-        errorArea.setEditable(false);
-        errorArea.setPrefRowCount(5);
-        errorArea.setText("Ошибка загрузки:\n" +
-                         "1. Проверьте наличие MainView.fxml в resources/fxml/\n" +
-                         "2. Запустите: mvn clean javafx:run\n" +
-                         "3. Проверьте структуру проекта");
-        
-        VBox vbox = new VBox(20, label, errorArea);
-        vbox.setStyle("-fx-alignment: center; -fx-padding: 30; -fx-background-color: #f8f9fa;");
-        
-        Scene scene = new Scene(vbox, 700, 400);
-        stage.setTitle("Kitap - Режим восстановления");
-        stage.setScene(scene);
-        stage.show();
-    }
-
     public static void main(String[] args) {
         launch(args);
     }

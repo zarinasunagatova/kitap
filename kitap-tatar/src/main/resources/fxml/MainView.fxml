@@ -6,50 +6,70 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.text.Font?>
 
-<VBox alignment="TOP_CENTER" prefHeight="700" prefWidth="1000" spacing="20.0" styleClass="main-menu" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21" fx:controller="com.tatar.learn.controllers.MainController">
+<StackPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21" fx:controller="com.tatar.learn.controllers.MainController">
    
-   <padding>
-      <Insets bottom="40" left="40" right="40" top="40" />
-   </padding>
+   <!-- Основной контент -->
+   <VBox alignment="TOP_CENTER" prefHeight="700" prefWidth="1000" spacing="20.0" styleClass="main-menu">
+      
+      <padding>
+         <Insets bottom="40" left="40" right="40" top="40" />
+      </padding>
+      
+      <Label style="-fx-font-size: 56px;" styleClass="main-title" text="Китап - Татар теле" />
+      <Label style="-fx-font-size: 24px;" styleClass="main-subtitle" text="Изучайте татарский язык" />
+      
+      <Region minHeight="30" VBox.vgrow="ALWAYS" />
+      
+      <!-- УРОКИ -->
+      <Button fx:id="lessonsButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, lessons-button" text="📚 Уроки / Дәресләр">
+         <font><Font size="16.0" /></font>
+      </Button>
+      
+      <!-- СЛОВАРЬ -->
+      <Button fx:id="dictionaryButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, dictionary-button" text="📖 Словарь / Сүзлек">
+         <font><Font size="16.0" /></font>
+      </Button>
+      
+      <!-- КАРТОЧКИ -->
+      <Button fx:id="cardsButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, cards-button" text="🃏 Карточки / Өйрән">
+         <font><Font size="16.0" /></font>
+      </Button>
+      
+      <!-- ТЕСТЫ -->
+      <Button fx:id="testButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, test-button" text="✍️ Тесты / Сынау">
+         <font><Font size="16.0" /></font>
+      </Button>
+      
+      <!-- КУЛЬТУРА -->
+      <Button fx:id="cultureButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, culture-button" text="🎭 Культура / Мәдәният">
+         <font><Font size="16.0" /></font>
+      </Button>
+      
+      <Region minHeight="20" VBox.vgrow="ALWAYS" />
+      
+      <!-- Статус бар внизу -->
+      <HBox alignment="CENTER_LEFT" maxWidth="900" spacing="10">
+         <Label fx:id="statusLabel" styleClass="status-label" text="Рәхим итегез! / Добро пожаловать!" HBox.hgrow="ALWAYS">
+            <font><Font size="14.0" /></font>
+         </Label>
+         <Label fx:id="voiceStatusLabel" styleClass="voice-status" />
+      </HBox>
+   </VBox>
    
-   <Label style="-fx-font-size: 56px;" styleClass="main-title" text="Китап - Татар теле" />
-   <Label style="-fx-font-size: 24px;" styleClass="main-subtitle" text="Изучайте татарский язык" />
+   <!-- Маленькая кнопка бэкапа в правом верхнем углу -->
+   <Button fx:id="backupButton" 
+        styleClass="backup-mini-button" 
+        text=""
+        maxWidth="60.0" 
+        maxHeight="60.0"
+        StackPane.alignment="BOTTOM_RIGHT">
+   <font><Font size="18.0" /></font>
+   <StackPane.margin>
+      <Insets bottom="15" right="15" />
+   </StackPane.margin>
+</Button>
    
-   <Region minHeight="30" VBox.vgrow="ALWAYS" />
-   
-   <!-- НОВЫЙ РАЗДЕЛ - УРОКИ (последовательное изучение тем) -->
-   <Button fx:id="lessonsButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, lessons-button" text="📚 Уроки / Дәресләр">
-      <font><Font size="16.0" /></font>
-   </Button>
-   
-   <!-- СЛОВАРЬ (все выученные слова) -->
-   <Button fx:id="dictionaryButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, dictionary-button" text="📖 Словарь / Сүзлек">
-      <font><Font size="16.0" /></font>
-   </Button>
-   
-   <!-- КАРТОЧКИ (повторение по SM-2) - переименовано -->
-   <Button fx:id="cardsButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, cards-button" text="🃏 Карточки / Өйрән">
-      <font><Font size="16.0" /></font>
-   </Button>
-   
-   <!-- ТЕСТЫ -->
-   <Button fx:id="testButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, test-button" text="✍️ Тесты / Сынау">
-      <font><Font size="16.0" /></font>
-   </Button>
-   
-   <!-- КУЛЬТУРА -->
-   <Button fx:id="cultureButton" prefHeight="80.0" prefWidth="500.0" styleClass="menu-button, culture-button" text="🎭 Культура / Мәдәният">
-      <font><Font size="16.0" /></font>
-   </Button>
-   
-   <Region minHeight="20" VBox.vgrow="ALWAYS" />
-   
-   <HBox alignment="CENTER_LEFT" maxWidth="900" spacing="10">
-      <Label fx:id="statusLabel" styleClass="status-label" text="Рәхим итегез! / Добро пожаловать!" HBox.hgrow="ALWAYS">
-         <font><Font size="14.0" /></font>
-      </Label>
-      <Label fx:id="voiceStatusLabel" styleClass="voice-status" />
-   </HBox>
-</VBox>
+</StackPane>

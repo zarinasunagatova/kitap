@@ -4,8 +4,6 @@ import com.tatar.learn.models.CultureItem;
 import com.tatar.learn.services.CultureService;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
@@ -92,7 +90,6 @@ public class CultureController implements Initializable {
             detailView.setManaged(false);
         }
         
-        // Очищаем columnConstraints
         itemsGrid.getColumnConstraints().clear();
         
         int col = 0;

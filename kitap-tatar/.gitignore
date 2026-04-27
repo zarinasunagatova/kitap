@@ -1,3 +1,79 @@
-/bin/
-/target/
+# Compiled files
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+.mvn-wrapper/
+
+# IDE files - Eclipse
+.classpath
+.project
+.settings/
+bin/
+*.prefs
+
+# IDE files - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE files - VS Code
+.vscode/
+*.code-workspace
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.tmp
+*.bak
+*.swp
+*.~*
+
+# Logs
+*.log
+logs/
+
+# Database files (если БД создается при первом запуске)
+*.db
+*.sqlite
+*.sqlite3
+*.db3
+
+# Backup folders (у тебя есть папка backups)
 backups/
+*.backup
+
+# Data folders (если там пользовательские данные)
+data/
+*.properties
+
+# Temporary files
+*.temp
+*.cache
+
+# Native packaging output (если собираешь локально)
+installer_output/
+*.msi
+*.dmg
+*.deb
+*.rpm
+*.exe
+*.app
+
+# Screenshots or large assets (если есть)
+screenshots/
+*.psd
+*.ai
