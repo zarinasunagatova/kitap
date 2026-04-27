@@ -1,9 +1,9 @@
 name: Build & Release KitapApp
 
 on:
- push:
-  tags:
-   - 'v*'
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -11,85 +11,90 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
- 
-  steps:
-  - name: Checkout
-    uses: actions/checkout@v4
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  - name: Set up Java 17
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: 17
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-  - name: Build JAR
-    run: mvn -B clean package
+      - name: Build JAR
+        run: |
+          cd kitap-tatar
+          mvn clean package
 
-   # ---------- Windows ----------
-   - name: Package (Windows)
-     if: runner.os == 'Windows'
-     run: |
-      jpackage ^
-        --input kitap-tatar/target ^
-        --name KitapApp ^
-        --main-jar kitap-tatar-app-1.0.0.jar ^
-        --main-class com.tatar.learn.KitapApp ^
-        --type exe ^
-        --icon kitap-tatar/src/main/deploy/kitap.ico ^
-        --add-modules javafx.controls,javafx.fxml ^
-        --win-menu ^
-        --win-shortcut
+      # ---------- Windows ----------
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd kitap-tatar
+          jpackage ^
+            --input target ^
+            --name KitapApp ^
+            --main-jar kitap-tatar-app-1.0.0-shaded.jar ^
+            --main-class com.tatar.learn.KitapApp ^
+            --type exe ^
+            --icon src/main/deploy/kitap.ico ^
+            --add-modules javafx.controls,javafx.fxml ^
+            --win-menu ^
+            --win-shortcut
 
-    # ---------- Linux ----------
-   - name: Package (Linux)
-     if: runner.os == 'Linux'
-     run: |
-      jpackage \
-        --input kitap-tatar/target \
-        --name KitapApp \
-        --main-jar kitap-tatar-app-1.0.0.jar \
-        --main-class com.tatar.learn.KitapApp \
-        --type deb \
-        --icon kitap-tatar/src/main/deploy/kitap.png \
-        --add-modules javafx.controls,javafx.fxml
+      # ---------- Linux ----------
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd kitap-tatar
+          jpackage \
+            --input target \
+            --name KitapApp \
+            --main-jar kitap-tatar-app-1.0.0-shaded.jar \
+            --main-class com.tatar.learn.KitapApp \
+            --type deb \
+            --icon src/main/deploy/kitap.png \
+            --add-modules javafx.controls,javafx.fxml
 
-   # ---------- macOS ----------
-   - name: Package (macOS)
-     if: runner.os == 'macOS'
-     run: |
-      jpackage \
-        --input kitap-tatar/target \
-        --name KitapApp \
-        --main-jar kitap-tatar-app-1.0.0.jar \
-        --main-class com.tatar.learn.KitapApp \
-        --type dmg \
-        --icon kitap-tatar/src/main/deploy/kitap.icns \
-        --add-modules javafx.controls,javafx.fxml
+      # ---------- macOS ----------
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd kitap-tatar
+          jpackage \
+            --input target \
+            --name KitapApp \
+            --main-jar kitap-tatar-app-1.0.0-shaded.jar \
+            --main-class com.tatar.learn.KitapApp \
+            --type dmg \
+            --icon src/main/deploy/kitap.icns \
+            --add-modules javafx.controls,javafx.fxml
 
-  # ---------- Upload artifacts ----------
-   - name: Upload artifacts
-     uses: actions/upload-artifact@v4
-     with:
-       name: KitapApp-${{ runner.os }}
-       path: |
-         *.exe
-         *.deb
-         *.dmg
+      # ---------- Upload artifacts ----------
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitapApp-${{ runner.os }}
+          path: |
+            **/*.exe
+            **/*.deb
+            **/*.dmg
 
   release:
-  needs: build
-  runs-on: ubuntu-latest
-  
-steps:
- - name: Download artifacts
-   uses: actions/download-artifact@v4
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
 
- - name: Create GitHub Release
-   uses: softprops/action-gh-release@v2
-   with:
-      files: |
-        **/*.exe
-        **/*.deb
-        **/*.dmg
-      env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            **/*.exe
+            **/*.deb
+            **/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
