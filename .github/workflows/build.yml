@@ -32,8 +32,8 @@ jobs:
             --type app-image `
             --dest installer_output `
             --win-console `
-            --verbose
-			--icon src/main/deploy/kitap.ico 
+            --verbose `
+            --icon src/main/deploy/kitap.ico
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -66,8 +66,8 @@ jobs:
             --type app-image \
             --dest installer_output \
             --mac-package-name "KitapTatar" \
-            --verbose
-			--icon src/main/deploy/icon.icns
+            --verbose \
+            --icon src/main/deploy/kitap.icns
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -104,11 +104,11 @@ jobs:
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
-            --verbose
-			--icon src/main/deploy/icon.png
+            --verbose \
+            --icon src/main/deploy/kitap.png
       
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: KitapTatar-Linux
-          path: installer_output/${{ secrets.GITHUB_TOKEN }}
+          path: installer_output/
