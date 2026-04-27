@@ -147,6 +147,15 @@
                     </execution>
                 </executions>
             </plugin>
+                        <!-- JavaFX Maven Plugin для локального запуска -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.tatar.learn.KitapApp</mainClass>
+                </configuration>
+            </plugin>
         </plugins>
         
         <resources>
