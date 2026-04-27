@@ -27,28 +27,25 @@ jobs:
         shell: pwsh
         run: |
           cd kitap-tatar
-          mkdir -p installer_output
           
-          # Find JavaFX path
-          $javafxBase = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-base\21.0.3"
-          $javafxControls = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-controls\21.0.3"
-          $javafxFxml = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-fxml\21.0.3"
-          $javafxMedia = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-media\21.0.3"
-          $javafxGraphics = "$env:USERPROFILE\.m2\repository\org\openjfx\javafx-graphics\21.0.3"
+          # Создаем структуру для jpackage
+          mkdir -p target/input
+          copy target\*.jar target\input\
+          copy target\libs\* target\input\
           
+          # Создаем приложение
           jpackage `
             --type app-image `
             --name "KitapTatar" `
-            --input target `
+            --input target/input `
             --main-jar kitap-tatar-app-1.0.0.jar `
             --main-class com.tatar.learn.KitapApp `
             --dest installer_output `
             --win-console `
             --verbose `
             --icon src/main/deploy/kitap.ico `
-            --module-path "$javafxBase;$javafxControls;$javafxFxml;$javafxMedia;$javafxGraphics" `
-            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics `
-            --java-options "--enable-native-access=ALL-UNNAMED"
+            --java-options "--enable-native-access=ALL-UNNAMED" `
+            --java-options "-Djava.library.path=."
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -75,27 +72,24 @@ jobs:
       - name: Create macOS app
         run: |
           cd kitap-tatar
-          mkdir -p installer_output
           
-          # Find JavaFX path
-          JAVAFX_BASE="$HOME/.m2/repository/org/openjfx/javafx-base/21.0.3"
-          JAVAFX_CONTROLS="$HOME/.m2/repository/org/openjfx/javafx-controls/21.0.3"
-          JAVAFX_FXML="$HOME/.m2/repository/org/openjfx/javafx-fxml/21.0.3"
-          JAVAFX_MEDIA="$HOME/.m2/repository/org/openjfx/javafx-media/21.0.3"
-          JAVAFX_GRAPHICS="$HOME/.m2/repository/org/openjfx/javafx-graphics/21.0.3"
+          # Создаем структуру для jpackage
+          mkdir -p target/input
+          cp target/*.jar target/input/
+          cp -r target/libs/* target/input/
           
+          # Создаем приложение
           jpackage \
             --type app-image \
             --name "KitapTatar" \
-            --input target \
+            --input target/input \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --dest installer_output \
             --mac-package-name "KitapTatar" \
             --verbose \
             --icon src/main/deploy/kitap.icns \
-            --module-path "$JAVAFX_BASE:$JAVAFX_CONTROLS:$JAVAFX_FXML:$JAVAFX_MEDIA:$JAVAFX_GRAPHICS" \
-            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics
+            --java-options "--enable-native-access=ALL-UNNAMED"
       
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -127,26 +121,23 @@ jobs:
       - name: Create Linux executable
         run: |
           cd kitap-tatar
-          mkdir -p installer_output
           
-          # Find JavaFX path
-          JAVAFX_BASE="$HOME/.m2/repository/org/openjfx/javafx-base/21.0.3"
-          JAVAFX_CONTROLS="$HOME/.m2/repository/org/openjfx/javafx-controls/21.0.3"
-          JAVAFX_FXML="$HOME/.m2/repository/org/openjfx/javafx-fxml/21.0.3"
-          JAVAFX_MEDIA="$HOME/.m2/repository/org/openjfx/javafx-media/21.0.3"
-          JAVAFX_GRAPHICS="$HOME/.m2/repository/org/openjfx/javafx-graphics/21.0.3"
+          # Создаем структуру для jpackage
+          mkdir -p target/input
+          cp target/*.jar target/input/
+          cp -r target/libs/* target/input/
           
+          # Создаем приложение
           jpackage \
             --type app-image \
             --name "kitap-tatar" \
-            --input target \
+            --input target/input \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --dest installer_output \
             --verbose \
             --icon src/main/deploy/kitap.png \
-            --module-path "$JAVAFX_BASE:$JAVAFX_CONTROLS:$JAVAFX_FXML:$JAVAFX_MEDIA:$JAVAFX_GRAPHICS" \
-            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics
+            --java-options "--enable-native-access=ALL-UNNAMED"
       
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
