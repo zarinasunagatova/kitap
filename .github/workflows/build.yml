@@ -23,14 +23,17 @@ jobs:
       
       - name: Create Windows executable
         run: |
+          cd kitap-tatar
           mkdir installer_output
           jpackage `
-            --input target `
-            --name "KitapTatar" `
+            --input target\lib `
+            --module-path "%JAVA_HOME%\jmods" `
+            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics,javafx.base `
             --main-jar kitap-tatar-app-1.0.0.jar `
             --main-class com.tatar.learn.KitapApp `
             --type app-image `
             --dest installer_output `
+            --name "KitapTatar" `
             --win-console `
             --verbose `
             --icon src/main/deploy/kitap.ico
@@ -57,14 +60,17 @@ jobs:
       
       - name: Create macOS app
         run: |
+          cd kitap-tatar
           mkdir -p installer_output
           jpackage \
-            --input target \
-            --name "KitapTatar" \
+            --input target/lib \
+            --module-path "$JAVA_HOME/jmods" \
+            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics,javafx.base \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
+            --name "KitapTatar" \
             --mac-package-name "KitapTatar" \
             --verbose \
             --icon src/main/deploy/kitap.icns
@@ -96,14 +102,17 @@ jobs:
       
       - name: Create Linux executable
         run: |
+          cd kitap-tatar
           mkdir -p installer_output
           jpackage \
-            --input target \
-            --name "kitap-tatar" \
+            --input target/lib \
+            --module-path "$JAVA_HOME/jmods" \
+            --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.graphics,javafx.base \
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
+            --name "kitap-tatar" \
             --verbose \
             --icon src/main/deploy/kitap.png
       
