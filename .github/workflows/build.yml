@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -41,14 +44,15 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir installer_output
-          jpackage `
-            --input target\jpackage-input `
-            --name "KitapApp" `
-            --main-jar kitap-tatar-app-1.0.0.jar `
-            --main-class com.tatar.learn.KitapApp `
-            --type app-image `
-            --dest installer_output `
-            --icon src\main\deploy\kitap.ico
+		  jpackage `
+		    --input target\jpackage-input `
+		    --name "KitapApp" `
+		    --main-jar kitap-tatar-app-1.0.0.jar `
+		    --main-class com.tatar.learn.KitapApp `
+		    --type app-image `
+		    --dest installer_output `
+		    --icon src\main\deploy\kitap.ico `
+		    --runtime-image "$env:JAVA_HOME"
           Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
       
       - name: Upload Windows artifact
@@ -85,16 +89,16 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-          jpackage \
-            --input target/jpackage-input \
-            --name "KitapApp" \
-            --main-jar kitap-tatar-app-1.0.0.jar \
-            --main-class com.tatar.learn.KitapApp \
-            --type app-image \
-            --dest installer_output \
-            --mac-package-name "KitapApp"
-          # Временно без иконки для macOS, если файла нет
-          # --icon src/main/deploy/kitap.icns
+		  jpackage \
+		    --input target/jpackage-input \
+		    --name "KitapApp" \
+		    --main-jar kitap-tatar-app-1.0.0.jar \
+		    --main-class com.tatar.learn.KitapApp \
+		    --type app-image \
+		    --dest installer_output \
+		    --mac-package-name "KitapApp" \
+			--icon src/main/deploy/kitap.icns \
+		    --runtime-image "$JAVA_HOME"
           
           # Даем права на выполнение
           if [ -f "installer_output/KitapApp.app/Contents/MacOS/KitapApp" ]; then
@@ -142,15 +146,16 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-          jpackage \
-            --input target/jpackage-input \
-            --name "kitap-app" \
-            --main-jar kitap-tatar-app-1.0.0.jar \
-            --main-class com.tatar.learn.KitapApp \
-            --type app-image \
-            --dest installer_output
-          # Временно без иконки для Linux, если файла нет
-          # --icon src/main/deploy/kitap.png
+		  jpackage \
+		    --input target/jpackage-input \
+		    --name "kitap-app" \
+		    --main-jar kitap-tatar-app-1.0.0.jar \
+		    --main-class com.tatar.learn.KitapApp \
+		    --type app-image \
+		    --dest installer_output \
+		    --icon src/main/deploy/kitap.png \
+		    --runtime-image "$JAVA_HOME"
+          
           
           tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
       
