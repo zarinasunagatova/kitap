@@ -23,14 +23,16 @@ jobs:
           cd kitap-tatar
           # Сборка проекта
           mvn clean package
-          # Копирование всех зависимостей
+          # Копирование всех зависимостей в target/lib
           mvn dependency:copy-dependencies -DincludeScope=runtime
           # Создание чистой папки для jpackage
           New-Item -ItemType Directory -Force target\jpackage-input
           # Копирование JAR приложения
           Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
-          # Копирование всех зависимостей
-          Copy-Item target\lib\* target\jpackage-input\ -Force
+          # Копирование всех зависимостей из target/lib в jpackage-input
+          if (Test-Path target\lib) {
+            Copy-Item target\lib\* target\jpackage-input\ -Force
+          }
           # Отладка: показываем, что в папке
           Write-Host "=== Contents of jpackage-input ==="
           Get-ChildItem target\jpackage-input\
@@ -75,7 +77,9 @@ jobs:
           mvn dependency:copy-dependencies -DincludeScope=runtime
           mkdir -p target/jpackage-input
           cp target/kitap-tatar-app-1.0.0.jar target/jpackage-input/
-          cp target/lib/* target/jpackage-input/
+          if [ -d "target/lib" ]; then
+            cp target/lib/* target/jpackage-input/
+          fi
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
       
@@ -91,7 +95,14 @@ jobs:
             --type app-image \
             --dest installer_output \
             --mac-package-name "KitapApp"
-          chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
+          # Временно без иконки для macOS, если файла нет
+          # --icon src/main/deploy/kitap.icns
+          
+          # Даем права на выполнение
+          if [ -f "installer_output/KitapApp.app/Contents/MacOS/KitapApp" ]; then
+            chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
+          fi
+          
           zip -r KitapApp-macOS.zip installer_output/KitapApp.app
       
       - name: Upload macOS artifact
@@ -123,7 +134,9 @@ jobs:
           mvn dependency:copy-dependencies -DincludeScope=runtime
           mkdir -p target/jpackage-input
           cp target/kitap-tatar-app-1.0.0.jar target/jpackage-input/
-          cp target/lib/* target/jpackage-input/
+          if [ -d "target/lib" ]; then
+            cp target/lib/* target/jpackage-input/
+          fi
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
       
@@ -137,8 +150,10 @@ jobs:
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
-            --dest installer_output \
-            --icon src/main/deploy/kitap.png
+            --dest installer_output
+          # Временно без иконки для Linux, если файла нет
+          # --icon src/main/deploy/kitap.png
+          
           tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
       
       - name: Upload Linux artifact
