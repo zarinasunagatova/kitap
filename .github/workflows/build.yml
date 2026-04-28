@@ -1,51 +1,46 @@
-name: Debug Windows Build
-
-on:
-  workflow_dispatch:
-
-jobs:
-  debug-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Build and prepare input directory
-        run: |
-          cd kitap-tatar
-          mvn clean package
-          mvn dependency:copy-dependencies -DincludeScope=runtime
-          New-Item -ItemType Directory -Force target\jpackage-input
-          Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
-          if (Test-Path target\lib) {
-            Copy-Item target\lib\* target\jpackage-input\ -Force
-          }
-          Write-Host "=== Contents of jpackage-input ==="
-          Get-ChildItem target\jpackage-input\
-      
-      - name: Create Windows executable WITH CONSOLE for debug
-        run: |
-          cd kitap-tatar
-          mkdir installer_output
-          jpackage `
-            --input target\jpackage-input `
-            --name "KitapApp" `
-            --main-jar kitap-tatar-app-1.0.0.jar `
-            --main-class com.tatar.learn.KitapApp `
-            --type app-image `
-            --dest installer_output `
-            --win-console
-          Write-Host "=== App structure ==="
-          Get-ChildItem installer_output\KitapApp
-          Get-ChildItem installer_output\KitapApp\runtime\bin -ErrorAction SilentlyContinue
-      
-      - name: Upload debug artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KitapApp-Debug
-          path: kitap-tatar/installer_output/KitapApp
+build-windows:
+  runs-on: windows-latest
+  steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Build and prepare input directory
+      run: |
+        cd kitap-tatar
+        mvn clean package
+        mvn dependency:copy-dependencies -DincludeScope=runtime
+        New-Item -ItemType Directory -Force target\jpackage-input
+        Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
+        if (Test-Path target\lib) {
+          Copy-Item target\lib\* target\jpackage-input\ -Force
+        }
+        Write-Host "=== Contents of jpackage-input ==="
+        Get-ChildItem target\jpackage-input\
+    
+    - name: Create Windows executable
+      run: |
+        cd kitap-tatar
+        mkdir installer_output
+        jpackage `
+          --input target\jpackage-input `
+          --name "KitapApp" `
+          --main-jar kitap-tatar-app-1.0.0.jar `
+          --main-class com.tatar.learn.KitapApp `
+          --type app-image `
+          --dest installer_output `
+          --icon src\main\deploy\kitap.ico `
+          --module-path "target\jpackage-input" `
+          --add-modules javafx.controls,javafx.fxml,javafx.media `
+          --win-console
+        Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: KitapApp-Windows
+        path: kitap-tatar/KitapApp-Windows.zip
