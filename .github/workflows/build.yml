@@ -1,46 +1,173 @@
-build-windows:
-  runs-on: windows-latest
-  steps:
-    - uses: actions/checkout@v4
+name: Build & Release KitapApp
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Build and prepare input directory
+        run: |
+          cd kitap-tatar
+          mvn clean package
+          mvn dependency:copy-dependencies -DincludeScope=runtime
+          New-Item -ItemType Directory -Force target\jpackage-input
+          Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
+          if (Test-Path target\lib) {
+            Copy-Item target\lib\* target\jpackage-input\ -Force
+          }
+          Write-Host "=== Contents of jpackage-input ==="
+          Get-ChildItem target\jpackage-input\
+      
+      - name: Create Windows executable
+        run: |
+          cd kitap-tatar
+          mkdir installer_output
+          jpackage `
+            --input target\jpackage-input `
+            --name "KitapApp" `
+            --main-jar kitap-tatar-app-1.0.0.jar `
+            --main-class com.tatar.learn.KitapApp `
+            --type app-image `
+            --dest installer_output `
+            --icon src\main\deploy\kitap.ico `
+            --module-path "target\jpackage-input" `
+            --add-modules javafx.controls,javafx.fxml,javafx.media `
+            --win-console
+          Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitapApp-Windows
+          path: kitap-tatar/KitapApp-Windows.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Build and prepare input directory
+        run: |
+          cd kitap-tatar
+          mvn clean package
+          mvn dependency:copy-dependencies -DincludeScope=runtime
+          mkdir -p target/jpackage-input
+          cp target/kitap-tatar-app-1.0.0.jar target/jpackage-input/
+          if [ -d "target/lib" ]; then
+            cp target/lib/* target/jpackage-input/
+          fi
+          echo "=== Contents of jpackage-input ==="
+          ls -la target/jpackage-input/
+      
+      - name: Create macOS app
+        run: |
+          cd kitap-tatar
+          mkdir -p installer_output
+          jpackage \
+            --input target/jpackage-input \
+            --name "KitapApp" \
+            --main-jar kitap-tatar-app-1.0.0.jar \
+            --main-class com.tatar.learn.KitapApp \
+            --type app-image \
+            --dest installer_output \
+            --mac-package-name "KitapApp"
+          if [ -f "installer_output/KitapApp.app/Contents/MacOS/KitapApp" ]; then
+            chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
+          fi
+          zip -r KitapApp-macOS.zip installer_output/KitapApp.app
+      
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitapApp-macOS
+          path: kitap-tatar/KitapApp-macOS.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libgl1-mesa-dev fakeroot
+      
+      - name: Build and prepare input directory
+        run: |
+          cd kitap-tatar
+          mvn clean package
+          mvn dependency:copy-dependencies -DincludeScope=runtime
+          mkdir -p target/jpackage-input
+          cp target/kitap-tatar-app-1.0.0.jar target/jpackage-input/
+          if [ -d "target/lib" ]; then
+            cp target/lib/* target/jpackage-input/
+          fi
+          echo "=== Contents of jpackage-input ==="
+          ls -la target/jpackage-input/
+      
+      - name: Create Linux executable
+        run: |
+          cd kitap-tatar
+          mkdir -p installer_output
+          jpackage \
+            --input target/jpackage-input \
+            --name "kitap-app" \
+            --main-jar kitap-tatar-app-1.0.0.jar \
+            --main-class com.tatar.learn.KitapApp \
+            --type app-image \
+            --dest installer_output
+          tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
+      
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitapApp-Linux
+          path: kitap-tatar/KitapApp-Linux.tar.gz
+
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     
-    - name: Setup JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-    
-    - name: Build and prepare input directory
-      run: |
-        cd kitap-tatar
-        mvn clean package
-        mvn dependency:copy-dependencies -DincludeScope=runtime
-        New-Item -ItemType Directory -Force target\jpackage-input
-        Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
-        if (Test-Path target\lib) {
-          Copy-Item target\lib\* target\jpackage-input\ -Force
-        }
-        Write-Host "=== Contents of jpackage-input ==="
-        Get-ChildItem target\jpackage-input\
-    
-    - name: Create Windows executable
-      run: |
-        cd kitap-tatar
-        mkdir installer_output
-        jpackage `
-          --input target\jpackage-input `
-          --name "KitapApp" `
-          --main-jar kitap-tatar-app-1.0.0.jar `
-          --main-class com.tatar.learn.KitapApp `
-          --type app-image `
-          --dest installer_output `
-          --icon src\main\deploy\kitap.ico `
-          --module-path "target\jpackage-input" `
-          --add-modules javafx.controls,javafx.fxml,javafx.media `
-          --win-console
-        Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
-    
-    - name: Upload Windows artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: KitapApp-Windows
-        path: kitap-tatar/KitapApp-Windows.zip
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
