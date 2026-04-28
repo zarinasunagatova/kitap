@@ -48,8 +48,6 @@ jobs:
             --main-class com.tatar.learn.KitapApp `
             --type app-image `
             --dest installer_output `
-            --win-menu `
-            --win-shortcut `
             --icon src\main\deploy\kitap.ico
           Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
       
