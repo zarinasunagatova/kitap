@@ -50,7 +50,7 @@ jobs:
             --dest installer_output `
             --win-menu `
             --win-shortcut `
-            --icon src/main/deploy/kitap.ico
+            --icon src\main\deploy\kitap.ico
           Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
       
       - name: Upload Windows artifact
