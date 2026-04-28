@@ -24,19 +24,13 @@ jobs:
       - name: Build and prepare input directory
         run: |
           cd kitap-tatar
-          # Сборка проекта
           mvn clean package
-          # Копирование всех зависимостей в target/lib
           mvn dependency:copy-dependencies -DincludeScope=runtime
-          # Создание чистой папки для jpackage
           New-Item -ItemType Directory -Force target\jpackage-input
-          # Копирование JAR приложения
           Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
-          # Копирование всех зависимостей из target/lib в jpackage-input
           if (Test-Path target\lib) {
             Copy-Item target\lib\* target\jpackage-input\ -Force
           }
-          # Отладка: показываем, что в папке
           Write-Host "=== Contents of jpackage-input ==="
           Get-ChildItem target\jpackage-input\
       
@@ -44,15 +38,15 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir installer_output
-		  jpackage `
-		    --input target\jpackage-input `
-		    --name "KitapApp" `
-		    --main-jar kitap-tatar-app-1.0.0.jar `
-		    --main-class com.tatar.learn.KitapApp `
-		    --type app-image `
-		    --dest installer_output `
-		    --icon src\main\deploy\kitap.ico `
-		    --runtime-image "$env:JAVA_HOME"
+          jpackage `
+            --input target\jpackage-input `
+            --name "KitapApp" `
+            --main-jar kitap-tatar-app-1.0.0.jar `
+            --main-class com.tatar.learn.KitapApp `
+            --type app-image `
+            --dest installer_output `
+            --icon src\main\deploy\kitap.ico `
+            --runtime-image "$env:JAVA_HOME"
           Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
       
       - name: Upload Windows artifact
@@ -89,22 +83,18 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-		  jpackage \
-		    --input target/jpackage-input \
-		    --name "KitapApp" \
-		    --main-jar kitap-tatar-app-1.0.0.jar \
-		    --main-class com.tatar.learn.KitapApp \
-		    --type app-image \
-		    --dest installer_output \
-		    --mac-package-name "KitapApp" \
-			--icon src/main/deploy/kitap.icns \
-		    --runtime-image "$JAVA_HOME"
-          
-          # Даем права на выполнение
+          jpackage \
+            --input target/jpackage-input \
+            --name "KitapApp" \
+            --main-jar kitap-tatar-app-1.0.0.jar \
+            --main-class com.tatar.learn.KitapApp \
+            --type app-image \
+            --dest installer_output \
+            --mac-package-name "KitapApp" \
+            --runtime-image "$JAVA_HOME"
           if [ -f "installer_output/KitapApp.app/Contents/MacOS/KitapApp" ]; then
             chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
           fi
-          
           zip -r KitapApp-macOS.zip installer_output/KitapApp.app
       
       - name: Upload macOS artifact
@@ -146,17 +136,14 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-		  jpackage \
-		    --input target/jpackage-input \
-		    --name "kitap-app" \
-		    --main-jar kitap-tatar-app-1.0.0.jar \
-		    --main-class com.tatar.learn.KitapApp \
-		    --type app-image \
-		    --dest installer_output \
-		    --icon src/main/deploy/kitap.png \
-		    --runtime-image "$JAVA_HOME"
-          
-          
+          jpackage \
+            --input target/jpackage-input \
+            --name "kitap-app" \
+            --main-jar kitap-tatar-app-1.0.0.jar \
+            --main-class com.tatar.learn.KitapApp \
+            --type app-image \
+            --dest installer_output \
+            --runtime-image "$JAVA_HOME"
           tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
       
       - name: Upload Linux artifact
