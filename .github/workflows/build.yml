@@ -21,14 +21,19 @@ jobs:
       - name: Build and prepare input directory
         run: |
           cd kitap-tatar
-          # Сборка
+          # Сборка проекта
           mvn clean package
-          # Создаём чистую папку
+          # Копирование всех зависимостей
+          mvn dependency:copy-dependencies -DincludeScope=runtime
+          # Создание чистой папки для jpackage
           New-Item -ItemType Directory -Force target\jpackage-input
-          # Копируем JAR приложения
+          # Копирование JAR приложения
           Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
-          # Копируем зависимости
+          # Копирование всех зависимостей
           Copy-Item target\lib\* target\jpackage-input\ -Force
+          # Отладка: показываем, что в папке
+          Write-Host "=== Contents of jpackage-input ==="
+          Get-ChildItem target\jpackage-input\
       
       - name: Create Windows executable
         run: |
@@ -66,14 +71,13 @@ jobs:
       - name: Build and prepare input directory
         run: |
           cd kitap-tatar
-          # Сборка
           mvn clean package
-          # Создаём чистую папку
+          mvn dependency:copy-dependencies -DincludeScope=runtime
           mkdir -p target/jpackage-input
-          # Копируем JAR приложения
           cp target/kitap-tatar-app-1.0.0.jar target/jpackage-input/
-          # Копируем зависимости
           cp target/lib/* target/jpackage-input/
+          echo "=== Contents of jpackage-input ==="
+          ls -la target/jpackage-input/
       
       - name: Create macOS app
         run: |
@@ -86,8 +90,8 @@ jobs:
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
-            --mac-package-name "KitapApp" \
-            --icon src/main/deploy/kitap.icns
+            --mac-package-name "KitapApp"
+          chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
           zip -r KitapApp-macOS.zip installer_output/KitapApp.app
       
       - name: Upload macOS artifact
@@ -115,14 +119,13 @@ jobs:
       - name: Build and prepare input directory
         run: |
           cd kitap-tatar
-          # Сборка
           mvn clean package
-          # Создаём чистую папку
+          mvn dependency:copy-dependencies -DincludeScope=runtime
           mkdir -p target/jpackage-input
-          # Копируем JAR приложения
           cp target/kitap-tatar-app-1.0.0.jar target/jpackage-input/
-          # Копируем зависимости
           cp target/lib/* target/jpackage-input/
+          echo "=== Contents of jpackage-input ==="
+          ls -la target/jpackage-input/
       
       - name: Create Linux executable
         run: |
