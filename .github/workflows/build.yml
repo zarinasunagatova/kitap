@@ -19,7 +19,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: 'liberica'
+          type: 'jdk+fx'
       
       - name: Build and prepare input directory
         run: |
@@ -133,7 +134,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: 'liberica'
+          type: 'jdk+fx'
       
       - name: Build and prepare input directory
         run: |
@@ -194,7 +196,8 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: 'liberica'
+          type: 'jdk+fx'
       
       - name: Install Linux dependencies
         run: |
