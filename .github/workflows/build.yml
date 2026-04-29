@@ -10,109 +10,109 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      
-      - name: Build and prepare input directory
-        run: |
-          cd kitap-tatar
-          mvn clean package
-          mvn dependency:copy-dependencies -DincludeScope=runtime
-          New-Item -ItemType Directory -Force target\jpackage-input
-          Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
-          if (Test-Path target\lib) {
-            Copy-Item target\lib\* target\jpackage-input\ -Force
-          }
-          Write-Host "=== Contents of jpackage-input ==="
-          Get-ChildItem target\jpackage-input\
-      
-      - name: Create Windows executable
-        run: |
-          cd kitap-tatar
-          mkdir installer_output
-          jpackage `
-            --input target\jpackage-input `
-            --name "KitapApp" `
-            --main-jar kitap-tatar-app-1.0.0.jar `
-            --main-class com.tatar.learn.KitapApp `
-            --type app-image `
-            --dest installer_output `
-            --icon src\main\deploy\kitap.ico `
-            --module-path "target\jpackage-input" `
-            --add-modules javafx.controls,javafx.fxml,javafx.media `
-            --win-console
-      
-      - name: Fix KitapApp.cfg (add JavaFX modules and correct classpath order)
-        run: |
-          cd kitap-tatar\installer_output\KitapApp\app
-          Write-Host "=== FIXING KitapApp.cfg ==="
-          $correctCfg = @"
-[Application]
-app.mainclass=com.tatar.learn.KitapApp
-app.classpath=`$APPDIR\gson-2.10.1.jar
-app.classpath=`$APPDIR\kitap-tatar-app-1.0.0.jar
-app.classpath=`$APPDIR\commons-lang3-3.13.0.jar
-app.classpath=`$APPDIR\commons-text-1.11.0.jar
-app.classpath=`$APPDIR\javafx-base-21.0.3-win.jar
-app.classpath=`$APPDIR\javafx-base-21.0.3.jar
-app.classpath=`$APPDIR\javafx-controls-21.0.3-win.jar
-app.classpath=`$APPDIR\javafx-controls-21.0.3.jar
-app.classpath=`$APPDIR\javafx-fxml-21.0.3-win.jar
-app.classpath=`$APPDIR\javafx-fxml-21.0.3.jar
-app.classpath=`$APPDIR\javafx-graphics-21.0.3-win.jar
-app.classpath=`$APPDIR\javafx-graphics-21.0.3.jar
-app.classpath=`$APPDIR\javafx-media-21.0.3-win.jar
-app.classpath=`$APPDIR\javafx-media-21.0.3.jar
-app.classpath=`$APPDIR\slf4j-api-1.7.36.jar
-app.classpath=`$APPDIR\sqlite-jdbc-3.45.3.0.jar
+	build-windows:
+	  runs-on: windows-latest
+	  steps:
+	    - uses: actions/checkout@v4
+	    
+	    - name: Setup JDK 17
+	      uses: actions/setup-java@v4
+	      with:
+	        java-version: '17'
+	        distribution: 'temurin'
+	    
+	    - name: Build and prepare input directory
+	      run: |
+	        cd kitap-tatar
+	        mvn clean package
+	        mvn dependency:copy-dependencies -DincludeScope=runtime
+	        New-Item -ItemType Directory -Force target\jpackage-input
+	        Copy-Item target\kitap-tatar-app-1.0.0.jar target\jpackage-input\
+	        if (Test-Path target\lib) {
+	          Copy-Item target\lib\* target\jpackage-input\ -Force
+	        }
+	        Write-Host "=== Contents of jpackage-input ==="
+	        Get-ChildItem target\jpackage-input\
+	    
+	    - name: Create Windows executable
+	      run: |
+	        cd kitap-tatar
+	        mkdir installer_output
+	        jpackage `
+	          --input target\jpackage-input `
+	          --name "KitapApp" `
+	          --main-jar kitap-tatar-app-1.0.0.jar `
+	          --main-class com.tatar.learn.KitapApp `
+	          --type app-image `
+	          --dest installer_output `
+	          --icon src\main\deploy\kitap.ico `
+	          --module-path "target\jpackage-input" `
+	          --add-modules javafx.controls,javafx.fxml,javafx.media `
+	          --win-console
+	    
+	    - name: Fix KitapApp.cfg
+	      run: |
+	        cd kitap-tatar\installer_output\KitapApp\app
+	        Write-Host "=== FIXING KitapApp.cfg ==="
+	        $correctCfg = @"
+	[Application]
+	app.mainclass=com.tatar.learn.KitapApp
+	app.classpath=`$APPDIR\gson-2.10.1.jar
+	app.classpath=`$APPDIR\kitap-tatar-app-1.0.0.jar
+	app.classpath=`$APPDIR\commons-lang3-3.13.0.jar
+	app.classpath=`$APPDIR\commons-text-1.11.0.jar
+	app.classpath=`$APPDIR\javafx-base-21.0.3-win.jar
+	app.classpath=`$APPDIR\javafx-base-21.0.3.jar
+	app.classpath=`$APPDIR\javafx-controls-21.0.3-win.jar
+	app.classpath=`$APPDIR\javafx-controls-21.0.3.jar
+	app.classpath=`$APPDIR\javafx-fxml-21.0.3-win.jar
+	app.classpath=`$APPDIR\javafx-fxml-21.0.3.jar
+	app.classpath=`$APPDIR\javafx-graphics-21.0.3-win.jar
+	app.classpath=`$APPDIR\javafx-graphics-21.0.3.jar
+	app.classpath=`$APPDIR\javafx-media-21.0.3-win.jar
+	app.classpath=`$APPDIR\javafx-media-21.0.3.jar
+	app.classpath=`$APPDIR\slf4j-api-1.7.36.jar
+	app.classpath=`$APPDIR\sqlite-jdbc-3.45.3.0.jar
 
-[JavaOptions]
-java-options=--module-path=`$APPDIR
-java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
-java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
-java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
-java-options=-Djpackage.app-version=1.0
-"@
-          $correctCfg | Out-File -FilePath KitapApp.cfg -Encoding UTF8
-          Write-Host "=== FIXED KitapApp.cfg ==="
-          Get-Content KitapApp.cfg
-      
-      - name: Create launcher batch file for users
-        run: |
-          cd kitap-tatar\installer_output\KitapApp
-          $runBat = @"
-@echo off
-chcp 65001 > nul
-cd /d "%~dp0"
-echo Starting KitapApp...
-"%CD%\runtime\bin\java.exe" --module-path "%CD%\app" --add-modules javafx.controls,javafx.fxml,javafx.media -cp "%CD%\app\gson-2.10.1.jar;%CD%\app\kitap-tatar-app-1.0.0.jar;%CD%\app\*" com.tatar.learn.KitapApp
-if errorlevel 1 (
-    echo.
-    echo Error starting application. Please check Java installation.
-    pause
-)
-"@
-          $runBat | Out-File -FilePath "Запустить KitapApp.bat" -Encoding ASCII
-          Write-Host "=== Created Запустить KitapApp.bat ==="
-      
-      - name: Compress Windows artifact
-        run: |
-          cd kitap-tatar
-          Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
-      
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KitapApp-Windows
-          path: kitap-tatar/KitapApp-Windows.zip
+	[JavaOptions]
+	java-options=--module-path=`$APPDIR
+	java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
+	java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+	java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
+	java-options=-Djpackage.app-version=1.0
+	"@
+	        $correctCfg | Out-File -FilePath KitapApp.cfg -Encoding UTF8
+	        Write-Host "=== FIXED KitapApp.cfg ==="
+	        Get-Content KitapApp.cfg
+	    
+	    - name: Create launcher batch file
+	      run: |
+	        cd kitap-tatar\installer_output\KitapApp
+	        $runBat = @'
+	@echo off
+	chcp 65001 > nul
+	cd /d "%~dp0"
+	echo Starting KitapApp...
+	"%CD%\runtime\bin\java.exe" --module-path "%CD%\app" --add-modules javafx.controls,javafx.fxml,javafx.media -cp "%CD%\app\gson-2.10.1.jar;%CD%\app\kitap-tatar-app-1.0.0.jar;%CD%\app\*" com.tatar.learn.KitapApp
+	if errorlevel 1 (
+	    echo.
+	    echo Error starting application. Please check Java installation.
+	    pause
+	)
+	'@
+	        $runBat | Out-File -FilePath "Запустить KitapApp.bat" -Encoding ASCII
+	        Write-Host "=== Created Запустить KitapApp.bat ==="
+	    
+	    - name: Compress Windows artifact
+	      run: |
+	        cd kitap-tatar
+	        Compress-Archive -Path installer_output\KitapApp -DestinationPath KitapApp-Windows.zip
+	    
+	    - name: Upload Windows artifact
+	      uses: actions/upload-artifact@v4
+	      with:
+	        name: KitapApp-Windows
+	        path: kitap-tatar/KitapApp-Windows.zip
 
   build-macos:
     runs-on: macos-latest
