@@ -69,8 +69,6 @@ jobs:
             --dest installer_output `
             --icon src\main\deploy\kitap.ico `
             --runtime-image custom-runtime `
-            --module-path "target\jpackage-input" `
-            --add-modules javafx.controls,javafx.fxml,javafx.media `
             --win-console
       
       - name: Fix KitapApp.cfg
