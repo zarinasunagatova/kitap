@@ -33,7 +33,7 @@ jobs:
           cd kitap-tatar
           jlink `
             --module-path "javafx-jmods\javafx-jmods-21.0.3;$env:JAVA_HOME\jmods" `
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media `
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media `
             --strip-debug `
             --no-man-pages `
             --no-header-files `
@@ -156,7 +156,7 @@ jobs:
           cd kitap-tatar
           jlink \
             --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" \
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media \
             --strip-debug \
             --no-man-pages \
             --no-header-files \
@@ -228,7 +228,7 @@ jobs:
           cd kitap-tatar
           jlink \
             --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" \
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media \
             --strip-debug \
             --no-man-pages \
             --no-header-files \
