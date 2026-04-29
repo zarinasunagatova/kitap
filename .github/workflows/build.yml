@@ -34,6 +34,19 @@ jobs:
           Write-Host "=== Contents of jpackage-input ==="
           Get-ChildItem target\jpackage-input\
       
+      - name: Create custom runtime with jlink
+        run: |
+          cd kitap-tatar
+          jlink `
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media `
+            --strip-debug `
+            --no-man-pages `
+            --no-header-files `
+            --compress=2 `
+            --output custom-runtime
+          Write-Host "=== custom-runtime/bin ==="
+          Get-ChildItem custom-runtime\bin
+      
       - name: Create Windows executable
         run: |
           cd kitap-tatar
@@ -46,6 +59,7 @@ jobs:
             --type app-image `
             --dest installer_output `
             --icon src\main\deploy\kitap.ico `
+            --runtime-image custom-runtime `
             --module-path "target\jpackage-input" `
             --add-modules javafx.controls,javafx.fxml,javafx.media `
             --win-console
@@ -134,6 +148,19 @@ jobs:
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
       
+      - name: Create custom runtime with jlink
+        run: |
+          cd kitap-tatar
+          jlink \
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
+            --strip-debug \
+            --no-man-pages \
+            --no-header-files \
+            --compress=2 \
+            --output custom-runtime
+          echo "=== custom-runtime/bin ==="
+          ls -la custom-runtime/bin/
+      
       - name: Create macOS app
         run: |
           cd kitap-tatar
@@ -145,7 +172,8 @@ jobs:
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
-            --mac-package-name "KitapApp"
+            --mac-package-name "KitapApp" \
+            --runtime-image custom-runtime
           if [ -f "installer_output/KitapApp.app/Contents/MacOS/KitapApp" ]; then
             chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
           fi
@@ -186,6 +214,19 @@ jobs:
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
       
+      - name: Create custom runtime with jlink
+        run: |
+          cd kitap-tatar
+          jlink \
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
+            --strip-debug \
+            --no-man-pages \
+            --no-header-files \
+            --compress=2 \
+            --output custom-runtime
+          echo "=== custom-runtime/bin ==="
+          ls -la custom-runtime/bin/
+      
       - name: Create Linux executable
         run: |
           cd kitap-tatar
@@ -196,7 +237,8 @@ jobs:
             --main-jar kitap-tatar-app-1.0.0.jar \
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
-            --dest installer_output
+            --dest installer_output \
+            --runtime-image custom-runtime
           tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
       
       - name: Upload Linux artifact
