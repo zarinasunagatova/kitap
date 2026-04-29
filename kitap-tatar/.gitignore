@@ -56,9 +56,6 @@ logs/
 backups/
 *.backup
 
-# Data folders (если там пользовательские данные)
-data/
-*.properties
 
 # Temporary files
 *.temp
