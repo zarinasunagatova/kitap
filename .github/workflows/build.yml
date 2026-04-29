@@ -22,6 +22,27 @@ jobs:
           distribution: 'liberica'
           type: 'jdk+fx'
       
+      - name: Download JavaFX jmods
+        run: |
+          cd kitap-tatar
+          curl -L https://download2.gluonhq.com/openjfx/21.0.3/openjfx-21.0.3_windows-x64_bin-jmods.zip -o javafx-jmods.zip
+          unzip javafx-jmods.zip -d javafx-jmods
+          dir javafx-jmods\javafx-jmods-21.0.3
+      
+      - name: Create custom runtime with jlink
+        run: |
+          cd kitap-tatar
+          jlink `
+            --module-path "javafx-jmods\javafx-jmods-21.0.3;$env:JAVA_HOME\jmods" `
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media `
+            --strip-debug `
+            --no-man-pages `
+            --no-header-files `
+            --compress=2 `
+            --output custom-runtime
+          Write-Host "=== custom-runtime/bin ==="
+          Get-ChildItem custom-runtime\bin
+      
       - name: Build and prepare input directory
         run: |
           cd kitap-tatar
@@ -34,19 +55,6 @@ jobs:
           }
           Write-Host "=== Contents of jpackage-input ==="
           Get-ChildItem target\jpackage-input\
-      
-      - name: Create custom runtime with jlink
-        run: |
-          cd kitap-tatar
-          jlink `
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media `
-            --strip-debug `
-            --no-man-pages `
-            --no-header-files `
-            --compress=2 `
-            --output custom-runtime
-          Write-Host "=== custom-runtime/bin ==="
-          Get-ChildItem custom-runtime\bin
       
       - name: Create Windows executable
         run: |
@@ -137,6 +145,25 @@ jobs:
           distribution: 'liberica'
           type: 'jdk+fx'
       
+      - name: Download JavaFX jmods
+        run: |
+          cd kitap-tatar
+          curl -L https://download2.gluonhq.com/openjfx/21.0.3/openjfx-21.0.3_osx-x64_bin-jmods.zip -o javafx-jmods.zip
+          unzip javafx-jmods.zip -d javafx-jmods
+          ls -la javafx-jmods/javafx-jmods-21.0.3
+      
+      - name: Create custom runtime with jlink
+        run: |
+          cd kitap-tatar
+          jlink \
+            --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" \
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
+            --strip-debug \
+            --no-man-pages \
+            --no-header-files \
+            --compress=2 \
+            --output custom-runtime
+      
       - name: Build and prepare input directory
         run: |
           cd kitap-tatar
@@ -149,19 +176,6 @@ jobs:
           fi
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
-      
-      - name: Create custom runtime with jlink
-        run: |
-          cd kitap-tatar
-          jlink \
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
-            --strip-debug \
-            --no-man-pages \
-            --no-header-files \
-            --compress=2 \
-            --output custom-runtime
-          echo "=== custom-runtime/bin ==="
-          ls -la custom-runtime/bin/
       
       - name: Create macOS app
         run: |
@@ -199,6 +213,25 @@ jobs:
           distribution: 'liberica'
           type: 'jdk+fx'
       
+      - name: Download JavaFX jmods
+        run: |
+          cd kitap-tatar
+          curl -L https://download2.gluonhq.com/openjfx/21.0.3/openjfx-21.0.3_linux-x64_bin-jmods.zip -o javafx-jmods.zip
+          unzip javafx-jmods.zip -d javafx-jmods
+          ls -la javafx-jmods/javafx-jmods-21.0.3
+      
+      - name: Create custom runtime with jlink
+        run: |
+          cd kitap-tatar
+          jlink \
+            --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" \
+            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
+            --strip-debug \
+            --no-man-pages \
+            --no-header-files \
+            --compress=2 \
+            --output custom-runtime
+      
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -216,19 +249,6 @@ jobs:
           fi
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
-      
-      - name: Create custom runtime with jlink
-        run: |
-          cd kitap-tatar
-          jlink \
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.prefs,javafx.controls,javafx.fxml,javafx.media \
-            --strip-debug \
-            --no-man-pages \
-            --no-header-files \
-            --compress=2 \
-            --output custom-runtime
-          echo "=== custom-runtime/bin ==="
-          ls -la custom-runtime/bin/
       
       - name: Create Linux executable
         run: |
