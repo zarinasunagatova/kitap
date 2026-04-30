@@ -70,6 +70,7 @@
             		<include>**/*.png</include>
             		<include>**/*.jpg</include>
             		<include>**/*.properties</include>
+            		<include>**/*.xml</include>
         		</includes>
     		</resource>
 		</resources>
