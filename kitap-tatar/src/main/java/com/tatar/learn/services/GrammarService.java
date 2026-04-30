@@ -7,6 +7,9 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class GrammarService {
     private static GrammarService instance;
@@ -14,6 +17,7 @@ public class GrammarService {
     private List<GrammarExercise> allExercises;
     private Set<String> categories;
     private final Gson gson = new Gson();
+    private static final Logger log = LoggerFactory.getLogger(GrammarService.class);
     
     // Класс для парсинга JSON структуры упражнений
     private static class ExerciseJson {
@@ -119,17 +123,17 @@ public class GrammarService {
                         rule.setExamples(formatExamples(jsonRule.getExamples()));
                         allRules.add(rule);
                     }
-                    System.out.println("Загружено правил из /data/grammar/grammar.json: " + allRules.size());
+                    log.info("Загружено правил из /data/grammar/grammar.json: " + allRules.size());
                     return;
                 }
             }
             
-            System.out.println("Файл grammar.json не найден, использую дефолтные правила");
+            log.info("Файл grammar.json не найден, использую дефолтные правила");
             createDefaultRules();
             
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки грамматики: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка загрузки грамматики: " + e.getMessage());
+            log.error("Ошибка", e);
             createDefaultRules();
         }
     }
@@ -149,10 +153,10 @@ public class GrammarService {
                 
                 if (wrapper != null && wrapper.getExercises() != null && !wrapper.getExercises().isEmpty()) {
                     allExercises = convertExercises(wrapper.getExercises());
-                    System.out.println("Загружено упражнений из /data/grammar/exercises.json: " + allExercises.size());
+                    log.info("Загружено упражнений из /data/grammar/exercises.json: " + allExercises.size());
                     
                     for (GrammarExercise ex : allExercises) {
-                        System.out.println("  - ID: " + ex.getId() + 
+                        log.info("  - ID: " + ex.getId() + 
                                          ", Type: " + ex.getType() + 
                                          ", Category: " + ex.getCategory());
                     }
@@ -160,12 +164,12 @@ public class GrammarService {
                 }
             }
             
-            System.out.println("Файл exercises.json не найден, использую дефолтные упражнения");
+            log.info("Файл exercises.json не найден, использую дефолтные упражнения");
             createDefaultExercises();
             
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки упражнений: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка загрузки упражнений: " + e.getMessage());
+            log.error("Ошибка", e);
             createDefaultExercises();
         }
     }
@@ -231,13 +235,13 @@ public class GrammarService {
                 converted.add(newEx);
             } else {
                 skippedCount++;
-                System.err.println("❌ Упражнение ID " + ex.getId() + " пропущено (не прошло валидацию)");
+                log.error("❌ Упражнение ID " + ex.getId() + " пропущено (не прошло валидацию)");
             }
         }
         
-        System.out.println("Всего сконвертировано упражнений: " + converted.size());
+        log.info("Всего сконвертировано упражнений: " + converted.size());
         if (skippedCount > 0) {
-            System.out.println("⚠️ Пропущено некорректных упражнений: " + skippedCount);
+            log.info("⚠️ Пропущено некорректных упражнений: " + skippedCount);
         }
         return converted;
     }
@@ -245,7 +249,7 @@ public class GrammarService {
     private boolean convertMultipleChoice(ExerciseJson ex, GrammarExercise newEx) {
         // Проверяем опции
         if (ex.getOptions() == null || ex.getOptions().isEmpty()) {
-            System.err.println("  - Нет options");
+            log.error("  - Нет options");
             return false;
         }
         
@@ -253,19 +257,19 @@ public class GrammarService {
         
         // Проверяем правильный ответ
         if (ex.getCorrect() == null) {
-            System.err.println("  - Нет correct индекса");
+            log.error("  - Нет correct индекса");
             return false;
         }
         
         if (ex.getCorrect() >= ex.getOptions().size()) {
-            System.err.println("  - correct индекс " + ex.getCorrect() + 
+            log.error("  - correct индекс " + ex.getCorrect() + 
                              " выходит за пределы options (size=" + ex.getOptions().size() + ")");
             return false;
         }
         
         String correctAnswer = ex.getOptions().get(ex.getCorrect());
         if (correctAnswer == null || correctAnswer.trim().isEmpty()) {
-            System.err.println("  - Правильный ответ пустой");
+            log.error("  - Правильный ответ пустой");
             return false;
         }
         
@@ -277,7 +281,7 @@ public class GrammarService {
         String correctAnswer = ex.getCorrectAnswer();
         
         if (correctAnswer == null || correctAnswer.trim().isEmpty()) {
-            System.err.println("  - Нет correctAnswer или он пустой");
+            log.error("  - Нет correctAnswer или он пустой");
             return false;
         }
         
@@ -288,7 +292,7 @@ public class GrammarService {
 
     private boolean convertMatching(ExerciseJson ex, GrammarExercise newEx) {
         if (ex.getPairs() == null || ex.getPairs().isEmpty()) {
-            System.err.println("  - Нет pairs для matching");
+            log.error("  - Нет pairs для matching");
             return false;
         }
         
@@ -302,17 +306,17 @@ public class GrammarService {
                         .append(pair.getRussian().trim()).append(";");
                 validPairs++;
             } else {
-                System.err.println("  - Пропущена некорректная пара: " + pair);
+                log.error("  - Пропущена некорректная пара: " + pair);
             }
         }
         
         if (validPairs < 2) {
-            System.err.println("  - Недостаточно корректных пар (нужно минимум 2, найдено " + validPairs + ")");
+            log.error("  - Недостаточно корректных пар (нужно минимум 2, найдено " + validPairs + ")");
             return false;
         }
         
         newEx.setExplanation(pairsStr.toString());
-        System.out.println("  - Matching упражнение ID " + ex.getId() + 
+        log.info("  - Matching упражнение ID " + ex.getId() + 
                            ": " + validPairs + " корректных пар");
         return true;
     }
@@ -352,7 +356,7 @@ public class GrammarService {
             categories.add("Синтаксис");
         }
         
-        System.out.println("Категории грамматики: " + categories);
+        log.info("Категории грамматики: " + categories);
     }
     
     
@@ -421,7 +425,7 @@ public class GrammarService {
         rule5.setExamples("Син киләсеңме? - Ты придешь?\nБу китапмы? - Это книга?");
         allRules.add(rule5);
         
-        System.out.println("Созданы правила по умолчанию: " + allRules.size());
+        log.info("Созданы правила по умолчанию: " + allRules.size());
     }
     
     private void createDefaultExercises() {
@@ -447,31 +451,31 @@ public class GrammarService {
         ex2.setOptions(Arrays.asList("өйләр", "өйнар", "өй", "өйләр"));
         allExercises.add(ex2);
         
-        System.out.println("Созданы упражнения по умолчанию: " + allExercises.size());
+        log.info("Созданы упражнения по умолчанию: " + allExercises.size());
     }
     
     private boolean isValidExercise(GrammarExercise exercise) {
         if (exercise == null) {
-            System.err.println("❌ Валидация не пройдена: упражнение null");
+            log.error("❌ Валидация не пройдена: упражнение null");
             return false;
         }
         
         // Проверяем наличие ID
         if (exercise.getId() <= 0) {
-            System.err.println("❌ Упражнение ID " + exercise.getId() + " пропущено: неверный ID");
+            log.error("❌ Упражнение ID " + exercise.getId() + " пропущено: неверный ID");
             return false;
         }
         
         // Проверяем наличие вопроса
         if (exercise.getQuestion() == null || exercise.getQuestion().trim().isEmpty()) {
-            System.err.println("❌ Упражнение ID " + exercise.getId() + " пропущено: отсутствует вопрос");
+            log.error("❌ Упражнение ID " + exercise.getId() + " пропущено: отсутствует вопрос");
             return false;
         }
         
         // Проверяем тип упражнения
         String type = exercise.getType();
         if (type == null || type.trim().isEmpty()) {
-            System.err.println("❌ Упражнение ID " + exercise.getId() + " пропущено: отсутствует тип");
+            log.error("❌ Упражнение ID " + exercise.getId() + " пропущено: отсутствует тип");
             return false;
         }
         
@@ -484,7 +488,7 @@ public class GrammarService {
             case "matching":
                 return validateMatching(exercise);
             default:
-                System.err.println("❌ Упражнение ID " + exercise.getId() + 
+                log.error("❌ Упражнение ID " + exercise.getId() + 
                                  " пропущено: неизвестный тип '" + type + "'");
                 return false;
         }
@@ -492,14 +496,14 @@ public class GrammarService {
     private boolean validateMultipleChoice(GrammarExercise exercise) {
         // Проверяем наличие опций
         if (exercise.getOptions() == null || exercise.getOptions().isEmpty()) {
-            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+            log.error("❌ Multiple choice упражнение ID " + exercise.getId() + 
                              " пропущено: нет вариантов ответа (options)");
             return false;
         }
         
         // Проверяем, что опций достаточно (минимум 2, лучше 4)
         if (exercise.getOptions().size() < 2) {
-            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+            log.error("❌ Multiple choice упражнение ID " + exercise.getId() + 
                              " пропущено: недостаточно вариантов ответа (нужно минимум 2, есть " + 
                              exercise.getOptions().size() + ")");
             return false;
@@ -507,14 +511,14 @@ public class GrammarService {
         
         // Проверяем наличие правильного ответа
         if (exercise.getCorrectAnswer() == null || exercise.getCorrectAnswer().trim().isEmpty()) {
-            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+            log.error("❌ Multiple choice упражнение ID " + exercise.getId() + 
                              " пропущено: нет правильного ответа (correctAnswer)");
             return false;
         }
         
         // Проверяем, что правильный ответ есть среди опций
         if (!exercise.getOptions().contains(exercise.getCorrectAnswer())) {
-            System.err.println("❌ Multiple choice упражнение ID " + exercise.getId() + 
+            log.error("❌ Multiple choice упражнение ID " + exercise.getId() + 
                              " пропущено: правильный ответ '" + exercise.getCorrectAnswer() + 
                              "' отсутствует в списке опций");
             return false;
@@ -526,14 +530,14 @@ public class GrammarService {
     private boolean validateTyping(GrammarExercise exercise) {
         // Проверяем наличие правильного ответа
         if (exercise.getCorrectAnswer() == null || exercise.getCorrectAnswer().trim().isEmpty()) {
-            System.err.println("❌ Typing упражнение ID " + exercise.getId() + 
+            log.error("❌ Typing упражнение ID " + exercise.getId() + 
                              " пропущено: нет правильного ответа (correctAnswer)");
             return false;
         }
         
         // Проверяем, что ответ не слишком короткий (опционально)
         if (exercise.getCorrectAnswer().trim().length() < 1) {
-            System.err.println("❌ Typing упражнение ID " + exercise.getId() + 
+            log.error("❌ Typing упражнение ID " + exercise.getId() + 
                              " пропущено: правильный ответ слишком короткий");
             return false;
         }
@@ -545,7 +549,7 @@ public class GrammarService {
         // Проверяем наличие пар
         String pairsStr = exercise.getExplanation();
         if (pairsStr == null || pairsStr.trim().isEmpty()) {
-            System.err.println("❌ Matching упражнение ID " + exercise.getId() + 
+            log.error("❌ Matching упражнение ID " + exercise.getId() + 
                              " пропущено: нет пар для сопоставления");
             return false;
         }
@@ -562,20 +566,20 @@ public class GrammarService {
                     !parts[1].trim().isEmpty()) {
                     validPairs++;
                 } else {
-                    System.err.println("⚠️ Matching упражнение ID " + exercise.getId() + 
+                    log.error("⚠️ Matching упражнение ID " + exercise.getId() + 
                                      ": некорректная пара '" + pair + "'");
                 }
             }
         }
         
         if (validPairs < 2) {
-            System.err.println("❌ Matching упражнение ID " + exercise.getId() + 
+            log.error("❌ Matching упражнение ID " + exercise.getId() + 
                              " пропущено: недостаточно корректных пар (нужно минимум 2, найдено " + 
                              validPairs + ")");
             return false;
         }
         
-        System.out.println("✅ Matching упражнение ID " + exercise.getId() + 
+        log.error("✅ Matching упражнение ID " + exercise.getId() + 
                            " прошло валидацию: " + validPairs + " корректных пар");
         return true;
     }

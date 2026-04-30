@@ -15,12 +15,13 @@ import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-
 import java.io.InputStream;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.ResourceBundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TopicsController implements Initializable {
     
@@ -32,6 +33,7 @@ public class TopicsController implements Initializable {
     
     private TopicsService topicsService;
     private DatabaseService dbService;
+    private static final Logger log = LoggerFactory.getLogger(TopicsController.class);
     
     @Override
     public void initialize(URL location, ResourceBundle resources) {
@@ -39,7 +41,7 @@ public class TopicsController implements Initializable {
         try {
             dbService = DatabaseService.getInstance();
         } catch (SQLException e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
         }
         
         updateTotalProgress();
@@ -144,7 +146,7 @@ public class TopicsController implements Initializable {
             currentStage.close();
             
         } catch (Exception e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
             showError("Ошибка", "Не удалось начать урок: " + e.getMessage());
         }
     }
@@ -171,7 +173,7 @@ public class TopicsController implements Initializable {
             }
             if (!exists) {
                 dbService.addWord(word);
-                System.out.println("✅ Добавлено слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
+                log.info("✅ Добавлено слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
             }
         }
     }
@@ -190,10 +192,10 @@ public class TopicsController implements Initializable {
             if (cssUrl != null) {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
             } else {
-                System.err.println("⚠️ CSS не найден в TopicsController");
+            	log.error("⚠️ CSS не найден в TopicsController");
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Ошибка загрузки CSS: " + e.getMessage());
+        	log.error("⚠️ Ошибка загрузки CSS: " + e.getMessage());
         }
     }
     
@@ -210,7 +212,7 @@ public class TopicsController implements Initializable {
                 return new Image(is);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
+            log.error("⚠️ Не удалось загрузить иконку: " + e.getMessage());
         }
         return null;
     }
@@ -226,7 +228,7 @@ public class TopicsController implements Initializable {
                 stage.getIcons().add(icon);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+            log.error("⚠️ Не удалось установить иконку: " + e.getMessage());
         }
     }
     

@@ -4,6 +4,8 @@ import javafx.application.Platform;
 import javafx.scene.control.Button;
 import java.io.*;
 import java.util.concurrent.CompletableFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TTSService {
     private static TTSService instance;
@@ -11,6 +13,7 @@ public class TTSService {
     private boolean rhVoiceAvailable = false;
     private String osName;
     private String platformSupportStatus;
+    private static final Logger log = LoggerFactory.getLogger(TTSService.class);
     
     private TTSService() {
         osName = System.getProperty("os.name").toLowerCase();
@@ -28,14 +31,14 @@ public class TTSService {
      * Определяет платформу и наличие татарского голоса
      */
     private void detectPlatformAndVoice() {
-        System.out.println("🖥️ Operating System: " + osName);
+        log.info("🖥️ Operating System: " + osName);
         
         if (osName.contains("win")) {
-            System.out.println("📢 Using Windows SAPI5 for TTS");
+            log.info("📢 Using Windows SAPI5 for TTS");
             detectWindowsVoice();
         } 
         else if (osName.contains("linux")) {
-            System.out.println("📢 Using Linux Speech Dispatcher for TTS");
+            log.info("📢 Using Linux Speech Dispatcher for TTS");
             detectLinuxVoice();
         }
         else if (osName.contains("mac")) {
@@ -44,7 +47,7 @@ public class TTSService {
         }
         else {
             platformSupportStatus = "❌ TTS не поддерживается на этой ОС";
-            System.out.println("❌ Unsupported OS for TTS");
+            log.info("❌ Unsupported OS for TTS");
             rhVoiceAvailable = false;
         }
     }
@@ -76,18 +79,18 @@ public class TTSService {
                         tatarVoice = line;
                         rhVoiceAvailable = true;
                         platformSupportStatus = "✅ Татарский голос: " + tatarVoice;
-                        System.out.println("✅ Found Tatar voice: " + tatarVoice);
+                        log.info("✅ Found Tatar voice: " + tatarVoice);
                         return;
                     }
                 }
             }
             
             platformSupportStatus = "⚠️ Татарский голос не найден\nУстановите RHVoice с голосом Talgat";
-            System.out.println(platformSupportStatus);
+            log.info(platformSupportStatus);
             rhVoiceAvailable = false;
             
         } catch (Exception e) {
-            System.err.println("Error detecting Windows voice: " + e.getMessage());
+            log.error("Error detecting Windows voice: " + e.getMessage());
             platformSupportStatus = "❌ Ошибка определения голоса";
             rhVoiceAvailable = false;
         }
@@ -105,7 +108,7 @@ public class TTSService {
             if (exitCode != 0) {
                 platformSupportStatus = "⚠️ speech-dispatcher не установлен\n" +
                     "Установите: sudo apt-get install speech-dispatcher rhvoice rhvoice-tatal";
-                System.out.println(platformSupportStatus);
+                log.info(platformSupportStatus);
                 rhVoiceAvailable = false;
                 return;
             }
@@ -126,7 +129,7 @@ public class TTSService {
                     tatarVoice = "rhvoice-talgat";
                     rhVoiceAvailable = true;
                     platformSupportStatus = "✅ Татарский голос: RHVoice/Talgat";
-                    System.out.println("✅ Found Tatar voice on Linux");
+                    log.info("✅ Found Tatar voice on Linux");
                     return;
                 }
             }
@@ -136,7 +139,7 @@ public class TTSService {
             rhVoiceAvailable = false;
             
         } catch (Exception e) {
-            System.err.println("Error detecting Linux voice: " + e.getMessage());
+            log.error("Error detecting Linux voice: " + e.getMessage());
             platformSupportStatus = "⚠️ Ошибка определения голоса\n" +
                 "Установите RHVoice: https://github.com/RHVoice/RHVoice";
             rhVoiceAvailable = false;
@@ -154,7 +157,7 @@ public class TTSService {
             "RHVoice для macOS не включает татарский язык.\n" +
             "Рекомендуется использовать Windows или Linux для озвучивания на татарском.";
         
-        System.out.println(platformSupportStatus);
+        log.info(platformSupportStatus);
         rhVoiceAvailable = false;
         tatarVoice = null;
     }
@@ -167,7 +170,7 @@ public class TTSService {
         
         if (!rhVoiceAvailable) {
             // На macOS просто логируем, без звука
-            System.out.println("🔊 (TTS недоступен) " + text);
+            log.info("🔊 (TTS недоступен) " + text);
             future.complete(null);
             return future;
         }
@@ -269,7 +272,7 @@ public class TTSService {
             
             if (error != null) {
                 Platform.runLater(() -> 
-                    System.err.println("Ошибка озвучивания: " + error.getMessage())
+                    log.error("Ошибка озвучивания: " + error.getMessage())
                 );
             }
         });

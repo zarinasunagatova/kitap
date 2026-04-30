@@ -21,6 +21,8 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class LearnController implements Initializable {
     
@@ -56,6 +58,7 @@ public class LearnController implements Initializable {
     private boolean isFlipped = false;
     private String currentFilterCategory = "Все категории";  
     private String currentMode = "cards";
+    private static final Logger log = LoggerFactory.getLogger(LearnController.class);
     
     // SM-2 константы
     private static final int[] INTERVALS = {0, 1, 3, 7, 14, 30, 60, 120, 180, 365};
@@ -123,7 +126,7 @@ public class LearnController implements Initializable {
             return true;
             
         } catch (SQLException e) {
-            System.err.println("Database init failed: " + e.getMessage());
+        	log.error("Database init failed: " + e.getMessage());
             showErrorOnStatus("❌ Ошибка БД: " + e.getMessage());
             return false;
         }
@@ -151,7 +154,7 @@ public class LearnController implements Initializable {
         if (queueInfoLabel != null) {
             queueInfoLabel.setText(message);
         }
-        System.err.println(message);
+        log.error(message);
     }
     
     /**
@@ -168,7 +171,7 @@ public class LearnController implements Initializable {
             if (word.getId() > 0) {
                 allWords.add(word);
             } else {
-                System.err.println("⚠️ Слово без ID пропущено: " + word.getTatar());
+            	log.error("⚠️ Слово без ID пропущено: " + word.getTatar());
             }
         } 
         
@@ -210,10 +213,10 @@ public class LearnController implements Initializable {
             learningQueue.add(newWords.get(i));
         }
         
-        System.out.println("=== Learning Queue Built ===");
-        System.out.println("Due words: " + dueWords.size() + " (taking " + dueToTake + ")");
-        System.out.println("New words: " + newWords.size() + " (taking " + newToTake + ")");
-        System.out.println("Total in queue: " + learningQueue.size());
+        log.info("=== Learning Queue Built ===");
+        log.info("Due words: " + dueWords.size() + " (taking " + dueToTake + ")");
+        log.info("New words: " + newWords.size() + " (taking " + newToTake + ")");
+        log.info("Total in queue: " + learningQueue.size());
         
         // Обновляем UI информацию
         updateQueueInfo();
@@ -538,7 +541,7 @@ public class LearnController implements Initializable {
         if (skipped != null) {
             // Возвращаем в конец очереди для следующей сессии
             // Но для простоты просто удаляем
-            System.out.println("Skipped word: " + skipped.getTatar());
+        	log.info("Skipped word: " + skipped.getTatar());
         }
         
         if (learningQueue.isEmpty()) {
@@ -733,7 +736,7 @@ public class LearnController implements Initializable {
                 return new Image(is);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
+        	log.info("⚠️ Не удалось загрузить иконку: " + e.getMessage());
         }
         return null;
     }
@@ -746,13 +749,13 @@ public class LearnController implements Initializable {
                 stage.getIcons().add(icon);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+        	log.error("⚠️ Не удалось установить иконку: " + e.getMessage());
         }
     }
 
 	public void setMode(String mode) {
 	    this.currentMode = mode;
-	    System.out.println("LearnController mode set to: " + mode);
+	    log.info("LearnController mode set to: " + mode);
 	}
 
 	public void setTopic(Topic topic) {
@@ -774,8 +777,8 @@ public class LearnController implements Initializable {
 	        learningQueue.add(word);
 	    }
 	    
-	    System.out.println("=== ЗАГРУЖЕНА ТЕМА: " + currentTopic.getName() + " ===");
-	    System.out.println("Слов в теме: " + learningQueue.size());
+	    log.info("=== ЗАГРУЖЕНА ТЕМА: " + currentTopic.getName() + " ===");
+	    log.info("Слов в теме: " + learningQueue.size());
 	    
 	    // Обновляем статистику
 	    allWords = new ArrayList<>(currentTopic.getWords());
@@ -788,7 +791,7 @@ public class LearnController implements Initializable {
 
 	public void setWords(List<Word> words) {
 	    if (words == null || words.isEmpty()) {
-	        System.err.println("⚠️ LearnController.setWords: передан пустой список слов");
+	    	log.error("⚠️ LearnController.setWords: передан пустой список слов");
 	        return;
 	    }
 	    
@@ -826,7 +829,7 @@ public class LearnController implements Initializable {
 	            flipCard(); 
 	        }
 	        
-	        System.out.println("✅ LearnController: восстановлено " + learningQueue.size() + " слов для изучения");
+	        log.info("✅ LearnController: восстановлено " + learningQueue.size() + " слов для изучения");
 	    }
 	}
 	

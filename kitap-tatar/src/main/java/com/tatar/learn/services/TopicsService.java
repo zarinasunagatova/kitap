@@ -11,8 +11,8 @@ import java.util.*;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TopicsService {
     private static TopicsService instance;
@@ -20,8 +20,8 @@ public class TopicsService {
     private List<Topic> allTopics;
     private Set<String> completedTopicNames;
     private DatabaseService dbService;
-    private static final Logger LOGGER = Logger.getLogger(TopicsService.class.getName());
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private static final Logger log = LoggerFactory.getLogger(TopicsService.class);
     
     private TopicsService() {
         prefs = Preferences.userNodeForPackage(TopicsService.class);
@@ -41,7 +41,7 @@ public class TopicsService {
         try {
             dbService = DatabaseService.getInstance();
         } catch (Exception e) {
-            System.err.println("Failed to init DatabaseService: " + e.getMessage());
+            log.error("Failed to init DatabaseService: " + e.getMessage());
         }
     }
     
@@ -91,9 +91,9 @@ public class TopicsService {
             }
         }
         
-        System.out.println("=== Загружено тем из JSON: " + allTopics.size() + " ===");
+        log.info("=== Загружено тем из JSON: " + allTopics.size() + " ===");
         for (Topic topic : allTopics) {
-            System.out.println("  - " + topic.getName() + ": " + topic.getWords().size() + " слов, " +
+            log.info("  - " + topic.getName() + ": " + topic.getWords().size() + " слов, " +
                 (topic.getGrammar() != null ? "грамматика есть" : "грамматики нет") + ", " +
                 topic.getExercises().size() + " упражнений");
         }
@@ -119,10 +119,10 @@ public class TopicsService {
                 wordsByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(word);
             }
             
-            System.out.println("✅ Загружено слов из БД: " + allDbWords.size());
+            log.info("✅ Загружено слов из БД: " + allDbWords.size());
             
         } catch (SQLException e) {
-            System.err.println("Ошибка загрузки слов из БД: " + e.getMessage());
+            log.error("Ошибка загрузки слов из БД: " + e.getMessage());
             return loadWordsFromJsonBackup();
         }
         
@@ -166,11 +166,10 @@ public class TopicsService {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to load words from JSON: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Failed to load words from JSON: " + e.getMessage());
+            log.error("Ошибка", e);
         }
-        
-        System.out.println("⚠️ Загружено слов из JSON (резерв): " + 
+        log.info("⚠️ Загружено слов из JSON (резерв): " + 
             wordsByCategory.values().stream().mapToInt(List::size).sum());
         
         // Сохраняем JSON-слова в БД для будущих запусков
@@ -195,10 +194,10 @@ public class TopicsService {
                     addedCount++;
                 }
             }
-            System.out.println("✅ Сохранено в БД новых слов: " + addedCount);
+            log.info("✅ Сохранено в БД новых слов: " + addedCount);
             
         } catch (SQLException e) {
-            System.err.println("Ошибка сохранения слов в БД: " + e.getMessage());
+            log.error("Ошибка сохранения слов в БД: " + e.getMessage());
         }
     }
     private Map<String, List<Word>> loadWordsFromJson() {
@@ -236,11 +235,11 @@ public class TopicsService {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to load words from JSON: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Failed to load words from JSON: " + e.getMessage());
+            log.error("Ошибка", e);
         }
         
-        System.out.println("Загружено слов из JSON: " + 
+        log.info("Загружено слов из JSON: " + 
             wordsByCategory.values().stream().mapToInt(List::size).sum());
         return wordsByCategory;
     }
@@ -270,13 +269,13 @@ public class TopicsService {
                         rule.setExamples(formatExamples(grj.getExamples()));
                         grammarByCategory.put(grj.getCategory(), rule);
                         
-                        System.out.println("  Загружено правило: " + grj.getTitle() + " (" + grj.getCategory() + ")");
+                        log.info("  Загружено правило: " + grj.getTitle() + " (" + grj.getCategory() + ")");
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to load grammar from JSON: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Failed to load grammar from JSON: " + e.getMessage());
+            log.error("Ошибка", e);
         }
         
         return grammarByCategory;
@@ -316,12 +315,12 @@ public class TopicsService {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to load exercises from JSON: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Failed to load exercises from JSON: " + e.getMessage());
+            log.error("Ошибка", e);
         }
         
         int total = exercisesByCategory.values().stream().mapToInt(List::size).sum();
-        System.out.println("Загружено упражнений из JSON: " + total);
+        log.info("Загружено упражнений из JSON: " + total);
         return exercisesByCategory;
     }
     
@@ -463,7 +462,7 @@ public class TopicsService {
                 }
                 if (!exists) {
                     dbService.addWord(word);
-                    System.out.println("✅ Добавлено слово в БД: " + word.getTatar());
+                    log.info("✅ Добавлено слово в БД: " + word.getTatar());
                 }
             }
         }
@@ -490,10 +489,10 @@ public class TopicsService {
                         word.setEaseFactor(existing.getEaseFactor());
                         
                         dbService.updateWord(word); 
-                        System.out.println("🔄 Обновлено слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
+                        log.info("🔄 Обновлено слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
                     } else {
                         dbService.addWord(word); 
-                        System.out.println("➕ Добавлено новое слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
+                        log.info("➕ Добавлено новое слово в БД: " + word.getTatar() + " (ID: " + word.getId() + ")");
                     }
                 }
                 break;
@@ -544,11 +543,11 @@ public class TopicsService {
                 .filter(w -> w.getId() > 0)
                 .collect(Collectors.toList());
             
-            System.out.println("=== getAllAvailableWords() вернуло " + validWords.size() + " слов ===");
+            log.info("=== getAllAvailableWords() вернуло " + validWords.size() + " слов ===");
             return validWords;
             
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to get all available words", e);
+            log.error("Failed to get all available words", e);
             return new ArrayList<>();
         } finally {
             lock.readLock().unlock();
@@ -559,7 +558,7 @@ public class TopicsService {
     public void refreshCache() {
         lock.writeLock().lock();
         try {
-            LOGGER.info("Refreshing cache...");
+            log.info("Refreshing cache...");
             
             // Перезагружаем темы из JSON
             loadTopicsFromJson();
@@ -572,9 +571,9 @@ public class TopicsService {
                 syncTopicWordsToDatabase(topicName);
             }
             
-            LOGGER.info("Cache refreshed successfully");
+            log.info("Cache refreshed successfully");
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to refresh cache", e);
+            log.info("Failed to refresh cache", e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -608,9 +607,9 @@ public class TopicsService {
                 }
             }
             
-            LOGGER.info("Loaded " + completedTopicNames.size() + " completed topics");
+            log.info("Loaded " + completedTopicNames.size() + " completed topics");
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to load completed topics", e);
+            log.error("Failed to load completed topics", e);
         } finally {
             lock.writeLock().unlock();
         }

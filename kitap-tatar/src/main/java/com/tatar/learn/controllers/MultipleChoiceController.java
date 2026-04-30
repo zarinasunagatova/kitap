@@ -13,6 +13,8 @@ import javafx.scene.layout.VBox;
 import javafx.event.ActionEvent;
 import java.net.URL;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MultipleChoiceController implements Initializable {
     
@@ -35,6 +37,7 @@ public class MultipleChoiceController implements Initializable {
     private List<GrammarExercise> currentExercises;
     private GrammarExercise currentExercise;
     private Random random = new Random();
+    private static final Logger log = LoggerFactory.getLogger(MultipleChoiceController.class);
     
     // Флаг режима и константа типа
     private boolean isMatchingMode = false;
@@ -66,7 +69,7 @@ public class MultipleChoiceController implements Initializable {
             
             // ===== получаем ТОЛЬКО упражнения из пройденных тем =====
             Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
-            System.out.println("Пройденные темы: " + completedTopics);
+            log.info("Пройденные темы: " + completedTopics);
             
             List<GrammarExercise> allMultipleChoice = grammarService.getExercisesByType(MULTIPLE_CHOICE_TYPE);
             List<GrammarExercise> allMatching = grammarService.getExercisesByType(MATCHING_TYPE);
@@ -98,7 +101,7 @@ public class MultipleChoiceController implements Initializable {
             
         } catch (Exception e) {
             System.err.println("Error initializing MultipleChoiceController: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка", e);
         }
     }
     
@@ -326,7 +329,7 @@ public class MultipleChoiceController implements Initializable {
             
         } catch (Exception e) {
             System.err.println("Error loading question: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка", e);
             if (feedbackLabel != null) {
                 feedbackLabel.setText("Ошибка загрузки вопроса: " + e.getMessage());
             }
@@ -390,7 +393,7 @@ public class MultipleChoiceController implements Initializable {
         
         // Для matching упражнений пары хранятся в специальном формате
         String pairsStr = currentExercise.getExplanation();
-        System.out.println("Parsing matching pairs: " + pairsStr);
+        log.info("Parsing matching pairs: " + pairsStr);
         
         if (pairsStr != null && !pairsStr.isEmpty()) {
             String[] pairs = pairsStr.split(";");

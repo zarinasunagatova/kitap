@@ -11,12 +11,14 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ImportService {
     private static volatile ImportService instance;
     private static volatile boolean initFailed = false;
     private static volatile String initErrorMessage = null;
-    
+    private static final Logger log = LoggerFactory.getLogger(ImportService.class);
     private DatabaseService dbService;
     private boolean databaseAvailable = false;
     
@@ -33,12 +35,12 @@ public class ImportService {
             }
             
             databaseAvailable = true;
-            System.out.println("✅ ImportService initialized successfully");
+            log.info("✅ ImportService initialized successfully");
             
         } catch (SQLException e) {
             initFailed = true;
             initErrorMessage = e.getMessage();
-            System.err.println("❌ ImportService initialization failed: " + e.getMessage());
+            log.error("❌ ImportService initialization failed: " + e.getMessage());
             throw e;
         }
     }
@@ -131,13 +133,13 @@ public class ImportService {
             
         } catch (SQLException e) {
             result.setMessage("❌ Ошибка базы данных: " + e.getMessage());
-            System.err.println("Database error in importFromJson: " + e.getMessage());
+            log.error("Database error in importFromJson: " + e.getMessage());
         } catch (IOException e) {
             result.setMessage("❌ Ошибка при чтении файла: " + e.getMessage());
-            System.err.println("IO error in importFromJson: " + e.getMessage());
+            log.error("IO error in importFromJson: " + e.getMessage());
         } catch (Exception e) {
             result.setMessage("❌ Непредвиденная ошибка: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка", e);
         }
         
         return result;
@@ -194,10 +196,10 @@ public class ImportService {
             
         } catch (SQLException e) {
             result.setMessage("❌ Ошибка базы данных: " + e.getMessage());
-            System.err.println("Database error: " + e.getMessage());
+            log.error("Database error: " + e.getMessage());
         } catch (IOException e) {
-            result.setMessage("❌ Ошибка при чтении файла: " + e.getMessage());
-            System.err.println("IO error: " + e.getMessage());
+            log.error("❌ Ошибка при чтении файла: " + e.getMessage());
+            log.error("IO error: " + e.getMessage());
         }
         
         return result;
@@ -282,10 +284,10 @@ public class ImportService {
             
         } catch (SQLException e) {
             result.setMessage("❌ Ошибка базы данных: " + e.getMessage());
-            System.err.println("Database error: " + e.getMessage());
+            log.error("Database error: " + e.getMessage());
         } catch (IOException e) {
             result.setMessage("❌ Ошибка при чтении файла: " + e.getMessage());
-            System.err.println("IO error: " + e.getMessage());
+            log.error("IO error: " + e.getMessage());
         }
         
         return result;
@@ -343,10 +345,10 @@ public class ImportService {
             
         } catch (SQLException e) {
             result.setMessage("❌ Ошибка базы данных: " + e.getMessage());
-            System.err.println("Database error: " + e.getMessage());
+            log.error("Database error: " + e.getMessage());
         } catch (IOException e) {
             result.setMessage("❌ Ошибка при чтении файла: " + e.getMessage());
-            System.err.println("IO error: " + e.getMessage());
+            log.error("IO error: " + e.getMessage());
         }
         
         return result;

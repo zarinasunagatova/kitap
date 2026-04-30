@@ -190,6 +190,7 @@ jobs:
             --type app-image \
             --dest installer_output \
             --mac-package-name "KitapApp" \
+            --icon src/main/deploy/kitap.icns \
             --runtime-image custom-runtime
           echo "=== Checking runtime in output ==="
           ls -la installer_output/KitapApp.app/Contents/
@@ -266,6 +267,7 @@ jobs:
             --main-class com.tatar.learn.KitapApp \
             --type app-image \
             --dest installer_output \
+            --icon src/main/deploy/kitap.png \
             --runtime-image custom-runtime
           echo "=== Checking runtime in output ==="
           ls -la installer_output/kitap-app/

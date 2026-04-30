@@ -8,6 +8,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import java.net.URL;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TestController implements Initializable {
     
@@ -22,6 +24,7 @@ public class TestController implements Initializable {
     
     private Map<Tab, Object> controllers = new HashMap<>();
     private Map<Tab, Boolean> loadedFlags = new HashMap<>();
+    private static final Logger log = LoggerFactory.getLogger(TypingController.class);
     
     private static class TabConfig {
         final Tab tab;
@@ -51,7 +54,7 @@ public class TestController implements Initializable {
             }
             
             setupLazyLoading();
-            System.out.println("Предварительная загрузка вкладки: " + multipleChoiceTab.getText());
+            log.info("Предварительная загрузка вкладки: " + multipleChoiceTab.getText());
             loadTab(tabConfigs.get(0));
             updateStatus("Готов к работе. Выберите тип упражнения.", "success");
             

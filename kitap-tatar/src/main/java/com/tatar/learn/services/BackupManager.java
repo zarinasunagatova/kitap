@@ -14,12 +14,14 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class BackupManager {
     private static volatile BackupManager instance;
     private static volatile boolean initFailed = false;
     private static volatile String initErrorMessage = null;
-    
+    private static final Logger log = LoggerFactory.getLogger(BackupManager.class);
     private DatabaseService dbService;
     private ScheduledExecutorService scheduler;
     private boolean databaseAvailable = false;
@@ -41,12 +43,12 @@ public class BackupManager {
             databaseAvailable = true;
             createBackupDirectory();
             startAutoBackup();
-            System.out.println("✅ BackupManager initialized successfully");
+            log.info("✅ BackupManager initialized successfully");
             
         } catch (SQLException e) {
             initFailed = true;
             initErrorMessage = e.getMessage();
-            System.err.println("❌ BackupManager initialization failed: " + e.getMessage());
+            log.error("❌ BackupManager initialization failed: " + e.getMessage());
             throw e;
         }
     }
@@ -93,19 +95,19 @@ public class BackupManager {
             if (!backupDir.exists()) {
                 boolean created = backupDir.mkdirs();
                 if (created) {
-                    System.out.println("📁 Created backup directory: " + BACKUP_DIR);
+                    log.info("📁 Created backup directory: " + BACKUP_DIR);
                 } else {
-                    System.err.println("⚠️ Failed to create backup directory: " + BACKUP_DIR);
+                    log.error("⚠️ Failed to create backup directory: " + BACKUP_DIR);
                 }
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Error creating backup directory: " + e.getMessage());
+            log.error("⚠️ Error creating backup directory: " + e.getMessage());
         }
     }
     
     private void startAutoBackup() {
         if (!databaseAvailable) {
-            System.err.println("⚠️ Auto backup disabled - database not available");
+            log.error("⚠️ Auto backup disabled - database not available");
             return;
         }
         
@@ -113,15 +115,15 @@ public class BackupManager {
             scheduler = Executors.newSingleThreadScheduledExecutor();
             scheduler.schedule(this::createDailyBackup, 1, TimeUnit.MINUTES);
             scheduler.scheduleAtFixedRate(this::createDailyBackup, 24, 24, TimeUnit.HOURS);
-            System.out.println("🔄 Auto backup enabled (daily)");
+            log.info("🔄 Auto backup enabled (daily)");
         } catch (Exception e) {
-            System.err.println("⚠️ Failed to start auto backup: " + e.getMessage());
+            log.error("⚠️ Failed to start auto backup: " + e.getMessage());
         }
     }
     
     public void createDailyBackup() {
         if (!databaseAvailable) {
-            System.err.println("⚠️ Daily backup skipped - database not available");
+            log.error("⚠️ Daily backup skipped - database not available");
             return;
         }
         
@@ -134,19 +136,19 @@ public class BackupManager {
             }
             
             createBackup(fileName);
-            System.out.println("📀 Daily backup created: " + fileName);
+            log.info("📀 Daily backup created: " + fileName);
             cleanOldBackups(30);
             
         } catch (SQLException e) {
-            System.err.println("❌ Database error in daily backup: " + e.getMessage());
+            log.error("❌ Database error in daily backup: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("❌ Error creating daily backup: " + e.getMessage());
+            log.error("❌ Error creating daily backup: " + e.getMessage());
         }
     }
     
     public void createShutdownBackup() {
         if (!databaseAvailable) {
-            System.err.println("⚠️ Shutdown backup skipped - database not available");
+            log.error("⚠️ Shutdown backup skipped - database not available");
             return;
         }
         
@@ -155,18 +157,18 @@ public class BackupManager {
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm")) + ".json";
             
             createBackup(fileName);
-            System.out.println("📀 Shutdown backup created: " + fileName);
+            log.info("📀 Shutdown backup created: " + fileName);
             
         } catch (SQLException e) {
-            System.err.println("❌ Database error in shutdown backup: " + e.getMessage());
+            log.error("❌ Database error in shutdown backup: " + e.getMessage());
         } catch (Exception e) {
-            System.err.println("❌ Error creating shutdown backup: " + e.getMessage());
+            log.error("❌ Error creating shutdown backup: " + e.getMessage());
         }
     }
     
     public String createManualBackup() {
         if (!databaseAvailable) {
-            System.err.println("⚠️ Manual backup skipped - database not available");
+            log.error("⚠️ Manual backup skipped - database not available");
             return null;
         }
         
@@ -175,14 +177,14 @@ public class BackupManager {
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss")) + ".json";
             
             createBackup(fileName);
-            System.out.println("📀 Manual backup created: " + fileName);
+            log.info("📀 Manual backup created: " + fileName);
             return fileName;
             
         } catch (SQLException e) {
-            System.err.println("❌ Database error in manual backup: " + e.getMessage());
+            log.error("❌ Database error in manual backup: " + e.getMessage());
             return null;
         } catch (Exception e) {
-            System.err.println("❌ Error creating manual backup: " + e.getMessage());
+            log.error("❌ Error creating manual backup: " + e.getMessage());
             return null;
         }
     }
@@ -223,16 +225,16 @@ public class BackupManager {
                             
                             if (fileDate.isBefore(cutoffDate)) {
                                 Files.delete(entry);
-                                System.out.println("🗑️ Deleted old backup: " + filename);
+                                log.info("🗑️ Deleted old backup: " + filename);
                             }
                         } catch (Exception e) {
-                            System.err.println("⚠️ Could not parse date from: " + filename);
+                            log.error("⚠️ Could not parse date from: " + filename);
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Error cleaning old backups: " + e.getMessage());
+            log.error("⚠️ Error cleaning old backups: " + e.getMessage());
         }
     }
     
@@ -243,7 +245,7 @@ public class BackupManager {
                 if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
                     scheduler.shutdownNow();
                 }
-                System.out.println("🛑 Backup scheduler stopped");
+                log.info("🛑 Backup scheduler stopped");
             } catch (InterruptedException e) {
                 scheduler.shutdownNow();
                 Thread.currentThread().interrupt();

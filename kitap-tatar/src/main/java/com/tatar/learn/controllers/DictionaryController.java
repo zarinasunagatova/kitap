@@ -18,7 +18,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.geometry.Insets;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.net.URL;
 import java.sql.SQLException;
@@ -42,7 +43,7 @@ public class DictionaryController implements Initializable {
     @FXML private Button addButton;
     @FXML private Label statusLabel;
     @FXML private Label countLabel;
-    
+    private static final Logger log = LoggerFactory.getLogger(DictionaryController.class);
     private DatabaseService dbService;
     private ObservableList<Word> wordList;
     private FilteredList<Word> filteredData;
@@ -282,7 +283,7 @@ public class DictionaryController implements Initializable {
             
             wordList.addAll(allWords);
             
-            System.out.println("Загружено слов из БД и пройденных тем: " + wordList.size());
+            log.info("Загружено слов из БД и пройденных тем: " + wordList.size());
             
             filteredData = new FilteredList<>(wordList, p -> true);
             SortedList<Word> sortedData = new SortedList<>(filteredData);
@@ -293,7 +294,7 @@ public class DictionaryController implements Initializable {
             statusLabel.setText("✅ Загружено " + wordList.size() + " слов");
         } catch (Exception e) {
             statusLabel.setText("❌ Ошибка загрузки слов: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Ошибка", e);
         }
     }
     

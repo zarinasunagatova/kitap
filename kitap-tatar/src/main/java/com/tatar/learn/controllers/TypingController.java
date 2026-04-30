@@ -3,7 +3,6 @@ package com.tatar.learn.controllers;
 import com.tatar.learn.models.GrammarExercise;
 import com.tatar.learn.services.GrammarService;
 import com.tatar.learn.services.TopicsService;
-
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.*;
@@ -11,6 +10,8 @@ import javafx.scene.input.KeyCode;
 import java.net.URL;
 import java.text.Normalizer;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TypingController implements Initializable {
     
@@ -29,6 +30,7 @@ public class TypingController implements Initializable {
     private List<GrammarExercise> currentExercises;
     private GrammarExercise currentExercise;
     private Random random = new Random();
+    private static final Logger log = LoggerFactory.getLogger(TypingController.class);
     
     // Статистика за сессию
     private int totalAttempts = 0;
@@ -43,7 +45,7 @@ public class TypingController implements Initializable {
             TopicsService topicsService = TopicsService.getInstance();
             
             Set<String> completedTopics = new HashSet<>(topicsService.getCompletedTopicNames());
-            System.out.println("TypingController - пройденные темы: " + completedTopics);
+            log.info("TypingController - пройденные темы: " + completedTopics);
             
             List<GrammarExercise> allTyping = grammarService.getExercisesByType(EXERCISE_TYPE);
             
@@ -70,8 +72,8 @@ public class TypingController implements Initializable {
             updateProgress();
             
         } catch (Exception e) {
-            System.err.println("Error initializing TypingController: " + e.getMessage());
-            e.printStackTrace();
+        	log.error("Error initializing TypingController: " + e.getMessage());
+            log.error("Ошибка", e);
         }
     }
 
@@ -341,7 +343,7 @@ public class TypingController implements Initializable {
         
         if (distance <= maxAllowed && distance > 0) {
             // Логируем опечатку для отладки
-            System.out.println("⚠️ Опечатка в слове '" + correctAnswer + 
+            log.info("⚠️ Опечатка в слове '" + correctAnswer + 
                                "': расстояние " + distance + 
                                " (допустимо " + maxAllowed + ")");
             return true;
@@ -350,7 +352,7 @@ public class TypingController implements Initializable {
         // 4. Проверка на раскладку (если русский набрали английскими буквами)
         String transliterated = transliterateFromEnglish(normalizedUser);
         if (transliterated.equals(normalizedCorrect)) {
-            System.out.println("⚠️ Исправлена раскладка: '" + userAnswer + "' → '" + transliterated + "'");
+            log.info("⚠️ Исправлена раскладка: '" + userAnswer + "' → '" + transliterated + "'");
             return true;
         }
         

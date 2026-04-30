@@ -8,22 +8,21 @@ import java.io.*;
 import java.util.*;
 import java.time.LocalDate;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DatabaseService {
-    private static final Logger LOGGER = Logger.getLogger(DatabaseService.class.getName());
     private static volatile DatabaseService instance;
     private static volatile boolean initFailed = false;
     private static String initErrorMessage = null;
-    
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     private Connection connection;
     private final Object connectionLock = new Object();
-    
+    private static final Logger log = LoggerFactory.getLogger(DatabaseService.class);
     private DatabaseService() throws SQLException {
         connect();
         createTables();
-        LOGGER.info("Database service initialized");
+        log.info("Database service initialized");
     }
     
     public static DatabaseService getInstance() throws SQLException {
@@ -39,7 +38,7 @@ public class DatabaseService {
                     } catch (SQLException e) {
                         initFailed = true;
                         initErrorMessage = e.getMessage();
-                        LOGGER.log(Level.SEVERE, "Failed to initialize DatabaseService", e);
+                        log.error("Failed to initialize DatabaseService", e);
                         throw e; // Пробрасываем дальше
                     }
                 }
@@ -68,7 +67,7 @@ public class DatabaseService {
                 return rs.next();
             }
         } catch (SQLException e) {
-            LOGGER.warning("Health check failed: " + e.getMessage());
+            log.error("Health check failed: " + e.getMessage());
             return false;
         } finally {
             lock.readLock().unlock();
@@ -82,7 +81,7 @@ public class DatabaseService {
         }
         initFailed = false;
         initErrorMessage = null;
-        LOGGER.info("DatabaseService reset");
+        log.info("DatabaseService reset");
     }
     
     private void connect() throws SQLException {
@@ -101,7 +100,7 @@ public class DatabaseService {
                 stmt.execute("PRAGMA synchronous = NORMAL");
             }
         }
-        LOGGER.info("Connected to database: " + url);
+        log.info("Connected to database: " + url);
     }
     
     private Connection getValidConnection() throws SQLException {
@@ -154,10 +153,10 @@ public class DatabaseService {
             wordCount = rs.getInt(1);
         }
         
-        System.out.println("=== Current word count: " + wordCount + " ===");
+        log.info("=== Current word count: " + wordCount + " ===");
      // НЕ загружаем слова автоматически - они будут добавляться при прохождении уроков
 	    if (wordCount == 0) {
-	    	System.out.println("=== Database is empty. Words will be added as lessons are completed ===");
+	    	log.info("=== Database is empty. Words will be added as lessons are completed ===");
 	        //loadWordsFromFile(); // ЗАКОММЕНТИРОВАНО
 	    }
         
@@ -193,10 +192,10 @@ public class DatabaseService {
             // Сохраняем в JSON
             JsonUtils.saveToFile(export, filePath);
             
-            LOGGER.info("Exported " + words.size() + " words to " + filePath);
+            log.info("Exported " + words.size() + " words to " + filePath);
             
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to export words", e);
+            log.error("Failed to export words", e);
             throw new IOException("Export failed: " + e.getMessage(), e);
         } finally {
             lock.readLock().unlock();
@@ -224,7 +223,7 @@ public class DatabaseService {
                 }
                 word.setExamples(examples);
             } catch (Exception e) {
-                LOGGER.warning("Failed to parse examples for word " + word.getId());
+                log.error("Failed to parse examples for word " + word.getId());
             }
         }
         
@@ -239,7 +238,7 @@ public class DatabaseService {
     
     private void migrateIfNeeded() throws SQLException {
         if (!columnExists("examples")) {
-            System.out.println("=== Adding examples column to words table ===");
+        	log.info("=== Adding examples column to words table ===");
             try (Statement stmt = getValidConnection().createStatement()) {
                 stmt.execute("ALTER TABLE words ADD COLUMN examples TEXT");
             }
@@ -339,17 +338,17 @@ public class DatabaseService {
                 }
                 
                 conn.commit();
-                LOGGER.info("Word added successfully with ID: " + word.getId());
+                log.info("Word added successfully with ID: " + word.getId());
                 
             } catch (SQLException e) {
                 conn.rollback();
-                LOGGER.log(Level.SEVERE, "Failed to add word, transaction rolled back", e);
+                log.error("Failed to add word, transaction rolled back", e);
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to add word", e);
+            log.error("Failed to add word", e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -377,9 +376,9 @@ public class DatabaseService {
                     words.add(mapRowToWord(rs));
                 }
             }
-            LOGGER.info("getAllWords() returned " + words.size() + " words");
+            log.info("getAllWords() returned " + words.size() + " words");
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to get all words", e);
+            log.error("Failed to get all words", e);
         } finally {
             lock.readLock().unlock();
         }
@@ -436,17 +435,17 @@ public class DatabaseService {
                 }
                 
                 conn.commit();
-                LOGGER.info("Word updated successfully with ID: " + word.getId());
+                log.info("Word updated successfully with ID: " + word.getId());
                 
             } catch (SQLException e) {
                 conn.rollback();
-                LOGGER.log(Level.SEVERE, "Failed to update word, transaction rolled back", e);
+                log.error("Failed to update word, transaction rolled back", e);
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to update word", e);
+            log.error("Failed to update word", e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -462,7 +461,7 @@ public class DatabaseService {
                 pstmt.executeUpdate();
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to delete word", e);
+            log.error("Failed to delete word", e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -514,13 +513,13 @@ public class DatabaseService {
                 
             } catch (SQLException e) {
                 conn.rollback();
-                LOGGER.log(Level.SEVERE, "Failed to save attempt, transaction rolled back", e);
+                log.error("Failed to save attempt, transaction rolled back", e);
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to save attempt", e);
+            log.error("Failed to save attempt", e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -538,7 +537,7 @@ public class DatabaseService {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.SEVERE, "Failed to get categories", e);
+            log.error("Failed to get categories", e);
         } finally {
             lock.readLock().unlock();
         }
@@ -554,7 +553,7 @@ public class DatabaseService {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.log(Level.WARNING, "Error closing connection", e);
+            log.error("Error closing connection", e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -567,10 +566,10 @@ public class DatabaseService {
             throw new IOException("Invalid backup file: no words found");
         }
         
-        System.out.println("📥 Importing " + export.getWords().size() + " words from backup");
-        System.out.println("   Version: " + export.getVersion());
-        System.out.println("   Export date: " + export.getExportDate());
-        System.out.println("   Categories: " + export.getCategories());
+        log.info("📥 Importing " + export.getWords().size() + " words from backup");
+        log.info("   Version: " + export.getVersion());
+        log.info("   Export date: " + export.getExportDate());
+        log.info("   Categories: " + export.getCategories());
         
         lock.writeLock().lock();
         try {
@@ -616,7 +615,7 @@ public class DatabaseService {
                 }
                 
                 conn.commit();
-                System.out.println("✅ Import completed successfully");
+                log.info("✅ Import completed successfully");
                 
             } catch (SQLException e) {
                 conn.rollback();

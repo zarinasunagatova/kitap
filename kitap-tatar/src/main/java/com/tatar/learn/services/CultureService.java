@@ -7,8 +7,11 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CultureService {
+	private static final Logger log = LoggerFactory.getLogger(CultureService.class);
     private static CultureService instance;
     private List<CultureItem> allItems;
     private final Gson gson = new Gson();
@@ -31,12 +34,12 @@ public class CultureService {
                 String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                 Type listType = new TypeToken<List<CultureItem>>(){}.getType();
                 allItems = gson.fromJson(json, listType);
-                System.out.println("Загружено культурных объектов: " + allItems.size());
+                log.info("Загружено культурных объектов: " + allItems.size());
             } else {
                 createDefaultItems();
             }
         } catch (Exception e) {
-            System.err.println("Ошибка загрузки культуры: " + e.getMessage());
+            log.error("Ошибка загрузки культуры: " + e.getMessage());
             createDefaultItems();
         }
     }
@@ -100,7 +103,7 @@ public class CultureService {
             "Берничә көн дәвам итүче, традицияләргә бай никах тантанасы.",
             "tradition", "💒"));
         
-        System.out.println("Созданы дефолтные культурные объекты: " + allItems.size());
+        log.info("Созданы дефолтные культурные объекты: " + allItems.size());
     }
     
     public List<CultureItem> getAllItems() {

@@ -22,6 +22,8 @@ import java.net.URL;
 import java.sql.SQLException;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MainController implements Initializable {
     
@@ -39,7 +41,7 @@ public class MainController implements Initializable {
     private static final int WINDOW_HEIGHT = 700;
     
     private boolean databaseAvailable = false;
-    
+    private static final Logger log = LoggerFactory.getLogger(MainController.class);
     private BackupManager backupManager;
     private ImportService importService;
     
@@ -63,17 +65,17 @@ public class MainController implements Initializable {
     private void initServices() {
         try {
             backupManager = BackupManager.getInstance();
-            System.out.println("✅ BackupManager доступен");
+            log.info("✅ BackupManager доступен");
         } catch (SQLException e) {
-            System.err.println("⚠️ BackupManager не доступен: " + e.getMessage());
+        	log.error("⚠️ BackupManager не доступен: " + e.getMessage());
             backupManager = null;
         }
         
         try {
             importService = ImportService.getInstance();
-            System.out.println("✅ ImportService доступен");
+            log.info("✅ ImportService доступен");
         } catch (SQLException e) {
-            System.err.println("⚠️ ImportService не доступен: " + e.getMessage());
+        	log.error("⚠️ ImportService не доступен: " + e.getMessage());
             importService = null;
         }
     }
@@ -264,7 +266,7 @@ public class MainController implements Initializable {
             setStageIcon(stage);
             stage.show();
         } catch (Exception e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
         }
     }
     
@@ -285,7 +287,7 @@ public class MainController implements Initializable {
             stage.show();
             statusLabel.setText("✅ Словарь открыт");
         } catch (Exception e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
             statusLabel.setText("❌ Ошибка открытия словаря");
             showErrorAlert("Ошибка", "Не удалось открыть словарь: " + e.getMessage());
         }
@@ -312,7 +314,7 @@ public class MainController implements Initializable {
             stage.show();
             statusLabel.setText("✅ Карточки открыты");
         } catch (Exception e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
             statusLabel.setText("❌ Ошибка открытия карточек");
             showErrorAlert("Ошибка", "Не удалось открыть карточки: " + e.getMessage());
         }
@@ -331,7 +333,7 @@ public class MainController implements Initializable {
             stage.show();
             statusLabel.setText("✅ Тесты открыты");
         } catch (Exception e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
             statusLabel.setText("❌ Ошибка открытия тестов");
             showErrorAlert("Ошибка", "Не удалось открыть тесты: " + e.getMessage());
         }
@@ -352,13 +354,13 @@ public class MainController implements Initializable {
                     cultureStage.getScene().getStylesheets().add(cssUrl.toExternalForm());
                 }
             } catch (Exception e) {
-                System.err.println("⚠️ CSS не загружен для раздела культуры: " + e.getMessage());
+            	log.error("⚠️ CSS не загружен для раздела культуры: " + e.getMessage());
             }
             
             cultureStage.initModality(javafx.stage.Modality.NONE);
             cultureStage.show();
         } catch (Exception e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
             showErrorAlert("Ошибка", "Не удалось открыть раздел культуры: " + e.getMessage());
         }
     }
@@ -369,14 +371,14 @@ public class MainController implements Initializable {
             databaseAvailable = dbService.isHealthy();
             
             if (databaseAvailable) {
-                System.out.println("✅ Database is healthy");
+            	log.info("✅ Database is healthy");
                 if (dbStatusLabel != null) {
                     dbStatusLabel.setText("✅ База данных: OK");
                     dbStatusLabel.setStyle("-fx-text-fill: #2c7a4c;");
                 }
             } else {
                 databaseAvailable = false;
-                System.err.println("⚠️ Database is not healthy");
+                log.error("⚠️ Database is not healthy");
                 if (dbStatusLabel != null) {
                     dbStatusLabel.setText("⚠️ База данных: проблемы");
                     dbStatusLabel.setStyle("-fx-text-fill: #b4654d;");
@@ -385,7 +387,7 @@ public class MainController implements Initializable {
             }
         } catch (Exception e) {
             databaseAvailable = false;
-            System.err.println("❌ Database initialization failed: " + e.getMessage());
+            log.error("❌ Database initialization failed: " + e.getMessage());
             if (dbStatusLabel != null) {
                 dbStatusLabel.setText("❌ База данных: ошибка");
                 dbStatusLabel.setStyle("-fx-text-fill: #d45d79;");
@@ -462,12 +464,12 @@ public class MainController implements Initializable {
             URL cssUrl = getClass().getResource("/styles/main.css");
             if (cssUrl != null) {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
-                System.out.println("✅ CSS загружен");
+                log.info("✅ CSS загружен");
             } else {
-                System.err.println("⚠️ CSS не найден");
+            	log.error("⚠️ CSS не найден");
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Ошибка загрузки CSS: " + e.getMessage());
+        	log.error("⚠️ Ошибка загрузки CSS: " + e.getMessage());
         }
     }
     
@@ -530,7 +532,7 @@ public class MainController implements Initializable {
                 stage.getIcons().add(icon);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Icon not loaded for stage: " + e.getMessage());
+        	log.error("⚠️ Icon not loaded for stage: " + e.getMessage());
         }
     }
     
@@ -542,7 +544,7 @@ public class MainController implements Initializable {
                 stage.getIcons().add(icon);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+        	log.error("⚠️ Не удалось установить иконку: " + e.getMessage());
         }
     }
     private Image loadDialogIcon() {
@@ -555,7 +557,7 @@ public class MainController implements Initializable {
                 return new Image(is);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
+        	log.error("⚠️ Не удалось загрузить иконку: " + e.getMessage());
         }
         return null;
     }

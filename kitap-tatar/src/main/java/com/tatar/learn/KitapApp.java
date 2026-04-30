@@ -17,20 +17,23 @@ import javafx.stage.Stage;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class KitapApp extends Application {
     
     private BackupManager backupManager;
     private DatabaseService dbService;
+    private static final Logger log = LoggerFactory.getLogger(KitapApp.class);
     static {
         System.setProperty("javafx.embed.singleThread", "true");
         System.setProperty("prism.order", "sw");
     }
-    
+   
     @Override
     public void start(Stage primaryStage) {
         try {
-            System.out.println("📚 Инициализация базы данных...");
+        	log.info("📚 Инициализация базы данных...");
             
             // Инициализируем БД с обработкой ошибок
             if (!initDatabase()) {
@@ -40,16 +43,16 @@ public class KitapApp extends Application {
             
             // Инициализируем менеджер бэкапов
             if (!initBackupManager()) {
-                System.err.println("⚠️ BackupManager не инициализирован, бэкапы отключены");
+            	log.error("⚠️ BackupManager не инициализирован, бэкапы отключены");
                 // Продолжаем работу без бэкапов
             }
             
-            System.out.println("🎨 Загрузка интерфейса...");
+            log.info("🎨 Загрузка интерфейса...");
             loadMainInterface(primaryStage);
             
         } catch (Exception e) {
-            System.err.println("❌ Критическая ошибка: " + e.getMessage());
-            e.printStackTrace();
+        	log.error("❌ Критическая ошибка: " + e.getMessage());
+        	log.error("Ошибка", e);
             showFatalErrorDialog(primaryStage, e.getMessage());
         }
     }
@@ -64,21 +67,21 @@ public class KitapApp extends Application {
             
             // Проверяем, что БД действительно работает
             if (dbService == null) {
-                System.err.println("❌ DatabaseService.getInstance() вернул null");
+            	log.error("❌ DatabaseService.getInstance() вернул null");
                 return false;
             }
             
             // Проверяем здоровье БД
             if (!dbService.isHealthy()) {
-                System.err.println("❌ Database is not healthy");
+            	log.error("❌ Database is not healthy");
                 return false;
             }
             
-            System.out.println("✅ Database initialized successfully");
+            log.info("✅ Database initialized successfully");
             return true;
             
         } catch (SQLException e) {
-            System.err.println("❌ Database initialization failed: " + e.getMessage());
+        	log.error("❌ Database initialization failed: " + e.getMessage());
             return false;
         }
     }
@@ -90,11 +93,11 @@ public class KitapApp extends Application {
     private boolean initBackupManager() {
         try {
             backupManager = BackupManager.getInstance();
-            System.out.println("✅ BackupManager initialized successfully");
+            log.info("✅ BackupManager initialized successfully");
             return true;
         } catch (SQLException e) {
-            System.err.println("⚠️ BackupManager initialization failed: " + e.getMessage());
-            System.err.println("   Backups will be disabled");
+        	log.error("⚠️ BackupManager initialization failed: " + e.getMessage());
+        	log.error("   Backups will be disabled");
             backupManager = null;
             return false;
         }
@@ -123,7 +126,7 @@ public class KitapApp extends Application {
                     primaryStage.getIcons().add(icon);
                 }
             } catch (Exception e) {
-                System.err.println("⚠️ Icon not loaded: " + e.getMessage());
+            	log.error("⚠️ Icon not loaded: " + e.getMessage());
             }
             
             primaryStage.setMinWidth(1000);
@@ -140,10 +143,10 @@ public class KitapApp extends Application {
             
             primaryStage.show();
             
-            System.out.println("✅ Приложение успешно запущено!");
+            log.info("✅ Приложение успешно запущено!");
             
         } catch (Exception e) {
-            System.err.println("❌ Failed to load main interface: " + e.getMessage());
+        	log.error("❌ Failed to load main interface: " + e.getMessage());
             throw new RuntimeException("Cannot load main interface", e);
         }
     }
@@ -154,15 +157,15 @@ public class KitapApp extends Application {
     private void loadCss(Scene scene) {
         try {
             URL cssUrl = getClass().getResource("/styles/main.css");
-            System.out.println("CSS URL: " + cssUrl);
+            log.info("CSS URL: " + cssUrl);
             if (cssUrl != null) {
                 scene.getStylesheets().add(cssUrl.toExternalForm());
-                System.out.println("✅ CSS стили загружены");
+                log.info("✅ CSS стили загружены");
             } else {
-                System.err.println("❌ CSS не найден по пути: /styles/main.css");
+            	log.error("❌ CSS не найден по пути: /styles/main.css");
             }
         } catch (Exception e) {
-            System.err.println("❌ Ошибка загрузки стилей: " + e.getMessage());
+        	log.error("❌ Ошибка загрузки стилей: " + e.getMessage());
         }
     }
     
@@ -171,26 +174,26 @@ public class KitapApp extends Application {
      */
     private void setupShutdownHandler(Stage primaryStage) {
         primaryStage.setOnCloseRequest(event -> {
-            System.out.println("📝 Shutting down...");
+        	log.info("📝 Shutting down...");
             
             // Создаем бэкап, если BackupManager доступен
             if (backupManager != null) {
                 try {
-                    System.out.println("📝 Creating shutdown backup...");
+                	log.info("📝 Creating shutdown backup...");
                     backupManager.createShutdownBackup();
                 } catch (Exception e) {
-                    System.err.println("⚠️ Failed to create shutdown backup: " + e.getMessage());
+                	log.error("⚠️ Failed to create shutdown backup: " + e.getMessage());
                 }
             }
             
             // Закрываем соединение с БД
             if (dbService != null) {
                 try {
-                    System.out.println("📝 Closing database connection...");
+                	log.info("📝 Closing database connection...");
                     dbService.close();
-                    System.out.println("✅ Database connection closed");
+                    log.info("✅ Database connection closed");
                 } catch (Exception e) {  // ← Exception, не SQLException
-                    System.err.println("⚠️ Error closing database: " + e.getMessage());
+                	log.error("⚠️ Error closing database: " + e.getMessage());
                 }
             }
             
@@ -199,11 +202,11 @@ public class KitapApp extends Application {
                 try {
                     backupManager.shutdown();
                 } catch (Exception e) {
-                    System.err.println("⚠️ Error shutting down BackupManager: " + e.getMessage());
+                	log.error("⚠️ Error shutting down BackupManager: " + e.getMessage());
                 }
             }
             
-            System.out.println("✅ Shutdown complete");
+            log.info("✅ Shutdown complete");
         });
     }
     

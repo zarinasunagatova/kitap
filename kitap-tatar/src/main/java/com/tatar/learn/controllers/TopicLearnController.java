@@ -15,12 +15,13 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.animation.PauseTransition;
 import javafx.util.Duration;
-
 import java.io.InputStream;
 import java.net.URL;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class TopicLearnController implements Initializable {
     
@@ -60,6 +61,8 @@ public class TopicLearnController implements Initializable {
     // Кнопка выхода
     @FXML private Button exitButton;
     
+    private static final Logger log = LoggerFactory.getLogger(TopicLearnController.class);
+    
     // ========== СЕРВИСЫ И ДАННЫЕ ==========
     private DatabaseService dbService;
     private TTSService ttsService;
@@ -80,7 +83,7 @@ public class TopicLearnController implements Initializable {
         try {
             dbService = DatabaseService.getInstance();
         } catch (SQLException e) {
-            e.printStackTrace();
+        	log.error("Ошибка", e);
         }
         topicsService = TopicsService.getInstance();
         ttsService = TTSService.getInstance();
@@ -113,12 +116,12 @@ public class TopicLearnController implements Initializable {
         wordsList = new ArrayList<>();
         if (topic.getWords() != null && !topic.getWords().isEmpty()) {
             wordsList.addAll(topic.getWords());
-            System.out.println("DEBUG: Загружено слов в wordsList: " + wordsList.size());
+            log.info("DEBUG: Загружено слов в wordsList: " + wordsList.size());
             for (Word w : wordsList) {
-                System.out.println("  - " + w.getTatar() + " = " + w.getRussian());
+                log.info("  - " + w.getTatar() + " = " + w.getRussian());
             }
         } else {
-            System.err.println("ERROR: topic.getWords() пуст или null!");
+        	log.error("ERROR: topic.getWords() пуст или null!");
             // Создаем тестовые слова для отладки
             wordsList.add(new Word("исәнме", "здравствуйте", "Приветствия"));
             wordsList.add(new Word("сау бул", "до свидания", "Приветствия"));
@@ -139,8 +142,8 @@ public class TopicLearnController implements Initializable {
         // Тест
         loadTest();
         
-        System.out.println("=== НАЧАЛО УРОКА: " + topic.getName() + " ===");
-        System.out.println("Слов в теме: " + wordsList.size());
+        log.info("=== НАЧАЛО УРОКА: " + topic.getName() + " ===");
+        log.info("Слов в теме: " + wordsList.size());
     }
     
     private void setupButtons() {
@@ -193,14 +196,14 @@ public class TopicLearnController implements Initializable {
         Word word = wordsList.get(currentWordIndex);
         
         if (word == null) {
-            System.err.println("ERROR: word is null at index " + currentWordIndex);
+            log.error("ERROR: word is null at index " + currentWordIndex);
             return;
         }
         
         String tatar = word.getTatar();
         String russian = word.getRussian();
         
-        System.out.println("DEBUG: Показываем слово: " + tatar + " = " + russian);
+        log.info("DEBUG: Показываем слово: " + tatar + " = " + russian);
         
         if (tatarWordLabel != null) {
             tatarWordLabel.setText(tatar != null ? tatar : "???");
@@ -314,7 +317,7 @@ public class TopicLearnController implements Initializable {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                log.error("Ошибка", e);
                 showTemporaryMessage("❌ Ошибка сохранения", markLearnedButton);
             }
         } else {
@@ -512,7 +515,7 @@ public class TopicLearnController implements Initializable {
                 return new Image(is);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось загрузить иконку: " + e.getMessage());
+            log.error("⚠️ Не удалось загрузить иконку: " + e.getMessage());
         }
         return null;
     }
@@ -525,7 +528,7 @@ public class TopicLearnController implements Initializable {
                 stage.getIcons().add(icon);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Не удалось установить иконку: " + e.getMessage());
+            log.error("⚠️ Не удалось установить иконку: " + e.getMessage());
         }
     }
     
