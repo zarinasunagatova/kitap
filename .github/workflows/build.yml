@@ -31,14 +31,7 @@ jobs:
       - name: Create custom runtime with jlink
         run: |
           cd kitap-tatar
-          jlink `
-            --module-path "javafx-jmods\javafx-jmods-21.0.3;$env:JAVA_HOME\jmods" `
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media `
-            --strip-debug `
-            --no-man-pages `
-            --no-header-files `
-            --compress=2 `
-            --output custom-runtime
+          jlink --module-path "javafx-jmods\javafx-jmods-21.0.3;$env:JAVA_HOME\jmods" --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media --strip-debug --no-man-pages --no-header-files --compress=2 --output custom-runtime
           Write-Host "=== custom-runtime/bin ==="
           Get-ChildItem custom-runtime\bin
       
@@ -66,67 +59,64 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir installer_output
-          jpackage `
-            --input target\jpackage-input `
-            --name "KitapApp" `
-            --main-jar kitap-tatar-app-1.0.0.jar `
-            --main-class com.tatar.learn.KitapApp `
-            --type app-image `
-            --dest installer_output `
-            --icon src\main\deploy\kitap.ico `
-            --runtime-image custom-runtime `
-            --win-console
+          jpackage --input target\jpackage-input --name "KitapApp" --main-jar kitap-tatar-app-1.0.0.jar --main-class com.tatar.learn.KitapApp --type app-image --dest installer_output --icon src\main\deploy\kitap.ico --runtime-image custom-runtime --win-console
           Write-Host "=== Checking runtime in output ==="
           Get-ChildItem installer_output\KitapApp
           Get-ChildItem installer_output\KitapApp\runtime\bin -ErrorAction SilentlyContinue
       
       - name: Fix KitapApp.cfg
+        shell: pwsh
         run: |
           cd kitap-tatar\installer_output\KitapApp\app
           Write-Host "=== FIXING KitapApp.cfg ==="
-          $correctCfg = '[Application]' + "`r`n" +
-            'app.mainclass=com.tatar.learn.KitapApp' + "`r`n" +
-            'app.classpath=$APPDIR\gson-2.10.1.jar' + "`r`n" +
-            'app.classpath=$APPDIR\kitap-tatar-app-1.0.0.jar' + "`r`n" +
-            'app.classpath=$APPDIR\commons-text-1.11.0.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-base-21.0.3-win.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-base-21.0.3.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-controls-21.0.3-win.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-controls-21.0.3.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-fxml-21.0.3-win.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-fxml-21.0.3.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-graphics-21.0.3-win.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-graphics-21.0.3.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-media-21.0.3-win.jar' + "`r`n" +
-            'app.classpath=$APPDIR\javafx-media-21.0.3.jar' + "`r`n" +
-            'app.classpath=$APPDIR\logback-classic-1.4.14.jar' + "`r`n" +
-            'app.classpath=$APPDIR\logback-core-1.4.14.jar' + "`r`n" +
-            'app.classpath=$APPDIR\slf4j-api-2.0.12.jar' + "`r`n" +
-            'app.classpath=$APPDIR\sqlite-jdbc-3.45.3.0.jar' + "`r`n" +
-            "`r`n" +
-            '[JavaOptions]' + "`r`n" +
-            'java-options=--module-path=$APPDIR' + "`r`n" +
-            'java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media' + "`r`n" +
-            'java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED' + "`r`n" +
-            'java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED' + "`r`n" +
-            'java-options=-Djpackage.app-version=1.0'
+          $correctCfg = @"
+          [Application]
+          app.mainclass=com.tatar.learn.KitapApp
+          app.classpath=`$APPDIR\gson-2.10.1.jar
+          app.classpath=`$APPDIR\kitap-tatar-app-1.0.0.jar
+          app.classpath=`$APPDIR\commons-text-1.11.0.jar
+          app.classpath=`$APPDIR\javafx-base-21.0.3-win.jar
+          app.classpath=`$APPDIR\javafx-base-21.0.3.jar
+          app.classpath=`$APPDIR\javafx-controls-21.0.3-win.jar
+          app.classpath=`$APPDIR\javafx-controls-21.0.3.jar
+          app.classpath=`$APPDIR\javafx-fxml-21.0.3-win.jar
+          app.classpath=`$APPDIR\javafx-fxml-21.0.3.jar
+          app.classpath=`$APPDIR\javafx-graphics-21.0.3-win.jar
+          app.classpath=`$APPDIR\javafx-graphics-21.0.3.jar
+          app.classpath=`$APPDIR\javafx-media-21.0.3-win.jar
+          app.classpath=`$APPDIR\javafx-media-21.0.3.jar
+          app.classpath=`$APPDIR\logback-classic-1.4.14.jar
+          app.classpath=`$APPDIR\logback-core-1.4.14.jar
+          app.classpath=`$APPDIR\slf4j-api-2.0.12.jar
+          app.classpath=`$APPDIR\sqlite-jdbc-3.45.3.0.jar
+
+          [JavaOptions]
+          java-options=--module-path=`$APPDIR
+          java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
+          java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+          java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
+          java-options=-Djpackage.app-version=1.0
+          "@
           $correctCfg | Out-File -FilePath KitapApp.cfg -Encoding UTF8
           Write-Host "=== FIXED KitapApp.cfg ==="
           Get-Content KitapApp.cfg
       
       - name: Create launcher batch file
+        shell: pwsh
         run: |
           cd kitap-tatar\installer_output\KitapApp
-          $runBat = '@echo off' + "`r`n" +
-            'chcp 65001 > nul' + "`r`n" +
-            'cd /d "%~dp0"' + "`r`n" +
-            'echo Starting KitapApp...' + "`r`n" +
-            '"%CD%\runtime\bin\java.exe" --module-path "%CD%\app" --add-modules javafx.controls,javafx.fxml,javafx.media -cp "%CD%\app\gson-2.10.1.jar;%CD%\app\kitap-tatar-app-1.0.0.jar;%CD%\app\*" com.tatar.learn.KitapApp' + "`r`n" +
-            'if errorlevel 1 (' + "`r`n" +
-            '    echo.' + "`r`n" +
-            '    echo Error starting application. Please check Java installation.' + "`r`n" +
-            '    pause' + "`r`n" +
-            ')'
+          $runBat = @'
+          @echo off
+          chcp 65001 > nul
+          cd /d "%~dp0"
+          echo Starting KitapApp...
+          "%CD%\runtime\bin\java.exe" --module-path "%CD%\app" --add-modules javafx.controls,javafx.fxml,javafx.media -cp "%CD%\app\gson-2.10.1.jar;%CD%\app\kitap-tatar-app-1.0.0.jar;%CD%\app\*" com.tatar.learn.KitapApp
+          if errorlevel 1 (
+              echo.
+              echo Error starting application. Please check Java installation.
+              pause
+          )
+          '@
           $runBat | Out-File -FilePath "Запустить KitapApp.bat" -Encoding ASCII
           Write-Host "=== Created Запустить KitapApp.bat ==="
       
@@ -162,14 +152,7 @@ jobs:
       - name: Create custom runtime with jlink
         run: |
           cd kitap-tatar
-          jlink \
-            --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" \
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media \
-            --strip-debug \
-            --no-man-pages \
-            --no-header-files \
-            --compress=2 \
-            --output custom-runtime
+          jlink --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media --strip-debug --no-man-pages --no-header-files --compress=2 --output custom-runtime
           echo "=== custom-runtime/bin ==="
           ls -la custom-runtime/bin/
       
@@ -197,60 +180,49 @@ jobs:
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-          jpackage \
-            --input target/jpackage-input \
-            --name "KitapApp" \
-            --main-jar kitap-tatar-app-1.0.0.jar \
-            --main-class com.tatar.learn.KitapApp \
-            --type app-image \
-            --dest installer_output \
-            --mac-package-name "KitapApp" \
-            --icon src/main/deploy/kitap.icns \
-            --runtime-image custom-runtime
+          jpackage --input target/jpackage-input --name "KitapApp" --main-jar kitap-tatar-app-1.0.0.jar --main-class com.tatar.learn.KitapApp --type app-image --dest installer_output --mac-package-name "KitapApp" --icon src/main/deploy/kitap.icns --runtime-image custom-runtime
           echo "=== Checking runtime in output ==="
           ls -la installer_output/KitapApp.app/Contents/
           ls -la installer_output/KitapApp.app/Contents/runtime/bin/ || echo "WARNING: runtime/bin not found"
-          zip -r KitapApp-macOS.zip installer_output/KitapApp.app
-      
+          
       - name: Fix KitapApp.cfg for macOS
         run: |
           cd kitap-tatar/installer_output/KitapApp.app/Contents/app
           echo "=== FIXING KitapApp.cfg for macOS ==="
           cat > KitapApp.cfg << 'EOF'
-[Application]
-app.mainclass=com.tatar.learn.KitapApp
-app.classpath=$APPDIR/gson-2.10.1.jar
-app.classpath=$APPDIR/kitap-tatar-app-1.0.0.jar
-app.classpath=$APPDIR/commons-text-1.11.0.jar
-app.classpath=$APPDIR/javafx-base-21.0.3-mac.jar
-app.classpath=$APPDIR/javafx-base-21.0.3.jar
-app.classpath=$APPDIR/javafx-controls-21.0.3-mac.jar
-app.classpath=$APPDIR/javafx-controls-21.0.3.jar
-app.classpath=$APPDIR/javafx-fxml-21.0.3-mac.jar
-app.classpath=$APPDIR/javafx-fxml-21.0.3.jar
-app.classpath=$APPDIR/javafx-graphics-21.0.3-mac.jar
-app.classpath=$APPDIR/javafx-graphics-21.0.3.jar
-app.classpath=$APPDIR/javafx-media-21.0.3-mac.jar
-app.classpath=$APPDIR/javafx-media-21.0.3.jar
-app.classpath=$APPDIR/logback-classic-1.4.14.jar
-app.classpath=$APPDIR/logback-core-1.4.14.jar
-app.classpath=$APPDIR/slf4j-api-2.0.12.jar
-app.classpath=$APPDIR/sqlite-jdbc-3.45.3.0.jar
+          [Application]
+          app.mainclass=com.tatar.learn.KitapApp
+          app.classpath=$APPDIR/gson-2.10.1.jar
+          app.classpath=$APPDIR/kitap-tatar-app-1.0.0.jar
+          app.classpath=$APPDIR/commons-text-1.11.0.jar
+          app.classpath=$APPDIR/javafx-base-21.0.3-mac.jar
+          app.classpath=$APPDIR/javafx-base-21.0.3.jar
+          app.classpath=$APPDIR/javafx-controls-21.0.3-mac.jar
+          app.classpath=$APPDIR/javafx-controls-21.0.3.jar
+          app.classpath=$APPDIR/javafx-fxml-21.0.3-mac.jar
+          app.classpath=$APPDIR/javafx-fxml-21.0.3.jar
+          app.classpath=$APPDIR/javafx-graphics-21.0.3-mac.jar
+          app.classpath=$APPDIR/javafx-graphics-21.0.3.jar
+          app.classpath=$APPDIR/javafx-media-21.0.3-mac.jar
+          app.classpath=$APPDIR/javafx-media-21.0.3.jar
+          app.classpath=$APPDIR/logback-classic-1.4.14.jar
+          app.classpath=$APPDIR/logback-core-1.4.14.jar
+          app.classpath=$APPDIR/slf4j-api-2.0.12.jar
+          app.classpath=$APPDIR/sqlite-jdbc-3.45.3.0.jar
 
-[JavaOptions]
-java-options=--module-path=$APPDIR
-java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
-java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
-java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
-java-options=-Djpackage.app-version=1.0
-EOF
+          [JavaOptions]
+          java-options=--module-path=$APPDIR
+          java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
+          java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+          java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
+          java-options=-Djpackage.app-version=1.0
+          EOF
           echo "=== FIXED KitapApp.cfg ==="
           cat KitapApp.cfg
       
-      - name: Re-zip macOS artifact
+      - name: Compress macOS artifact
         run: |
           cd kitap-tatar
-          rm -f KitapApp-macOS.zip
           zip -r KitapApp-macOS.zip installer_output/KitapApp.app
       
       - name: Upload macOS artifact
@@ -280,14 +252,7 @@ EOF
       - name: Create custom runtime with jlink
         run: |
           cd kitap-tatar
-          jlink \
-            --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" \
-            --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media \
-            --strip-debug \
-            --no-man-pages \
-            --no-header-files \
-            --compress=2 \
-            --output custom-runtime
+          jlink --module-path "javafx-jmods/javafx-jmods-21.0.3:$JAVA_HOME/jmods" --add-modules java.base,java.desktop,java.logging,java.sql,java.sql.rowset,java.prefs,javafx.controls,javafx.fxml,javafx.media --strip-debug --no-man-pages --no-header-files --compress=2 --output custom-runtime
           echo "=== custom-runtime/bin ==="
           ls -la custom-runtime/bin/
       
@@ -320,59 +285,49 @@ EOF
         run: |
           cd kitap-tatar
           mkdir -p installer_output
-          jpackage \
-            --input target/jpackage-input \
-            --name "kitap-app" \
-            --main-jar kitap-tatar-app-1.0.0.jar \
-            --main-class com.tatar.learn.KitapApp \
-            --type app-image \
-            --dest installer_output \
-            --icon src/main/deploy/kitap.png \
-            --runtime-image custom-runtime
+          jpackage --input target/jpackage-input --name "kitap-app" --main-jar kitap-tatar-app-1.0.0.jar --main-class com.tatar.learn.KitapApp --type app-image --dest installer_output --icon src/main/deploy/kitap.png --runtime-image custom-runtime
           echo "=== Checking runtime in output ==="
           ls -la installer_output/kitap-app/
           ls -la installer_output/kitap-app/runtime/bin/ || echo "WARNING: runtime/bin not found"
-          tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
-      
+          
       - name: Fix KitapApp.cfg for Linux
         run: |
           cd kitap-tatar/installer_output/kitap-app/lib/app
           echo "=== FIXING KitapApp.cfg for Linux ==="
           cat > KitapApp.cfg << 'EOF'
-[Application]
-app.mainclass=com.tatar.learn.KitapApp
-app.classpath=$APPDIR/gson-2.10.1.jar
-app.classpath=$APPDIR/kitap-tatar-app-1.0.0.jar
-app.classpath=$APPDIR/commons-text-1.11.0.jar
-app.classpath=$APPDIR/javafx-base-21.0.3-linux.jar
-app.classpath=$APPDIR/javafx-base-21.0.3.jar
-app.classpath=$APPDIR/javafx-controls-21.0.3-linux.jar
-app.classpath=$APPDIR/javafx-controls-21.0.3.jar
-app.classpath=$APPDIR/javafx-fxml-21.0.3-linux.jar
-app.classpath=$APPDIR/javafx-fxml-21.0.3.jar
-app.classpath=$APPDIR/javafx-graphics-21.0.3-linux.jar
-app.classpath=$APPDIR/javafx-graphics-21.0.3.jar
-app.classpath=$APPDIR/javafx-media-21.0.3-linux.jar
-app.classpath=$APPDIR/javafx-media-21.0.3.jar
-app.classpath=$APPDIR/logback-classic-1.4.14.jar
-app.classpath=$APPDIR/logback-core-1.4.14.jar
-app.classpath=$APPDIR/slf4j-api-2.0.12.jar
-app.classpath=$APPDIR/sqlite-jdbc-3.45.3.0.jar
+          [Application]
+          app.mainclass=com.tatar.learn.KitapApp
+          app.classpath=$APPDIR/gson-2.10.1.jar
+          app.classpath=$APPDIR/kitap-tatar-app-1.0.0.jar
+          app.classpath=$APPDIR/commons-text-1.11.0.jar
+          app.classpath=$APPDIR/javafx-base-21.0.3-linux.jar
+          app.classpath=$APPDIR/javafx-base-21.0.3.jar
+          app.classpath=$APPDIR/javafx-controls-21.0.3-linux.jar
+          app.classpath=$APPDIR/javafx-controls-21.0.3.jar
+          app.classpath=$APPDIR/javafx-fxml-21.0.3-linux.jar
+          app.classpath=$APPDIR/javafx-fxml-21.0.3.jar
+          app.classpath=$APPDIR/javafx-graphics-21.0.3-linux.jar
+          app.classpath=$APPDIR/javafx-graphics-21.0.3.jar
+          app.classpath=$APPDIR/javafx-media-21.0.3-linux.jar
+          app.classpath=$APPDIR/javafx-media-21.0.3.jar
+          app.classpath=$APPDIR/logback-classic-1.4.14.jar
+          app.classpath=$APPDIR/logback-core-1.4.14.jar
+          app.classpath=$APPDIR/slf4j-api-2.0.12.jar
+          app.classpath=$APPDIR/sqlite-jdbc-3.45.3.0.jar
 
-[JavaOptions]
-java-options=--module-path=$APPDIR
-java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
-java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
-java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
-java-options=-Djpackage.app-version=1.0
-EOF
+          [JavaOptions]
+          java-options=--module-path=$APPDIR
+          java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
+          java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+          java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
+          java-options=-Djpackage.app-version=1.0
+          EOF
           echo "=== FIXED KitapApp.cfg ==="
           cat KitapApp.cfg
       
-      - name: Re-tar Linux artifact
+      - name: Compress Linux artifact
         run: |
           cd kitap-tatar
-          rm -f KitapApp-Linux.tar.gz
           tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
       
       - name: Upload Linux artifact
