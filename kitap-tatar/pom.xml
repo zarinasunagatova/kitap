@@ -19,6 +19,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <javafx.version>21.0.3</javafx.version>
+        <slf4j.version>2.0.12</slf4j.version>
+        <logback.version>1.4.14</logback.version>
     </properties>
     
     <dependencies>
@@ -52,36 +54,45 @@
             <artifactId>commons-text</artifactId>
             <version>1.11.0</version>
         </dependency>
+        
+        <!-- Logback с явной версией slf4j-api -->
         <dependency>
-    			<groupId>ch.qos.logback</groupId>
-    			<artifactId>logback-classic</artifactId>
-    			<version>1.4.14</version>
-		</dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+        
+        <!-- Явная зависимость от slf4j-api версии 2.0.x -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
 
-		<!-- Исключить slf4j-simple глобально -->
-		<dependency>
-		    <groupId>org.slf4j</groupId>
-		    <artifactId>slf4j-simple</artifactId>
-		    <version>2.0.12</version>
-		    <scope>provided</scope>
-		</dependency>
+        <!-- Исключить slf4j-simple полностью -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
     
     <build>
-    	<resources>
-    		<resource>
-        		<directory>src/main/resources</directory>
-        			<includes>
-            		<include>**/*.json</include>
-            		<include>**/*.fxml</include>
-            		<include>**/*.css</include>
-            		<include>**/*.png</include>
-            		<include>**/*.jpg</include>
-            		<include>**/*.properties</include>
-            		<include>**/*.xml</include>
-        		</includes>
-    		</resource>
-		</resources>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <includes>
+                    <include>**/*.json</include>
+                    <include>**/*.fxml</include>
+                    <include>**/*.css</include>
+                    <include>**/*.png</include>
+                    <include>**/*.jpg</include>
+                    <include>**/*.properties</include>
+                    <include>**/*.xml</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

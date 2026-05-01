@@ -210,9 +210,47 @@ jobs:
           echo "=== Checking runtime in output ==="
           ls -la installer_output/KitapApp.app/Contents/
           ls -la installer_output/KitapApp.app/Contents/runtime/bin/ || echo "WARNING: runtime/bin not found"
-          if [ -f "installer_output/KitapApp.app/Contents/MacOS/KitapApp" ]; then
-            chmod +x installer_output/KitapApp.app/Contents/MacOS/KitapApp
-          fi
+          zip -r KitapApp-macOS.zip installer_output/KitapApp.app
+      
+      - name: Fix KitapApp.cfg for macOS
+        run: |
+          cd kitap-tatar/installer_output/KitapApp.app/Contents/app
+          echo "=== FIXING KitapApp.cfg for macOS ==="
+          cat > KitapApp.cfg << 'EOF'
+[Application]
+app.mainclass=com.tatar.learn.KitapApp
+app.classpath=$APPDIR/gson-2.10.1.jar
+app.classpath=$APPDIR/kitap-tatar-app-1.0.0.jar
+app.classpath=$APPDIR/commons-text-1.11.0.jar
+app.classpath=$APPDIR/javafx-base-21.0.3-mac.jar
+app.classpath=$APPDIR/javafx-base-21.0.3.jar
+app.classpath=$APPDIR/javafx-controls-21.0.3-mac.jar
+app.classpath=$APPDIR/javafx-controls-21.0.3.jar
+app.classpath=$APPDIR/javafx-fxml-21.0.3-mac.jar
+app.classpath=$APPDIR/javafx-fxml-21.0.3.jar
+app.classpath=$APPDIR/javafx-graphics-21.0.3-mac.jar
+app.classpath=$APPDIR/javafx-graphics-21.0.3.jar
+app.classpath=$APPDIR/javafx-media-21.0.3-mac.jar
+app.classpath=$APPDIR/javafx-media-21.0.3.jar
+app.classpath=$APPDIR/logback-classic-1.4.14.jar
+app.classpath=$APPDIR/logback-core-1.4.14.jar
+app.classpath=$APPDIR/slf4j-api-2.0.12.jar
+app.classpath=$APPDIR/sqlite-jdbc-3.45.3.0.jar
+
+[JavaOptions]
+java-options=--module-path=$APPDIR
+java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
+java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
+java-options=-Djpackage.app-version=1.0
+EOF
+          echo "=== FIXED KitapApp.cfg ==="
+          cat KitapApp.cfg
+      
+      - name: Re-zip macOS artifact
+        run: |
+          cd kitap-tatar
+          rm -f KitapApp-macOS.zip
           zip -r KitapApp-macOS.zip installer_output/KitapApp.app
       
       - name: Upload macOS artifact
@@ -294,6 +332,47 @@ jobs:
           echo "=== Checking runtime in output ==="
           ls -la installer_output/kitap-app/
           ls -la installer_output/kitap-app/runtime/bin/ || echo "WARNING: runtime/bin not found"
+          tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
+      
+      - name: Fix KitapApp.cfg for Linux
+        run: |
+          cd kitap-tatar/installer_output/kitap-app/lib/app
+          echo "=== FIXING KitapApp.cfg for Linux ==="
+          cat > KitapApp.cfg << 'EOF'
+[Application]
+app.mainclass=com.tatar.learn.KitapApp
+app.classpath=$APPDIR/gson-2.10.1.jar
+app.classpath=$APPDIR/kitap-tatar-app-1.0.0.jar
+app.classpath=$APPDIR/commons-text-1.11.0.jar
+app.classpath=$APPDIR/javafx-base-21.0.3-linux.jar
+app.classpath=$APPDIR/javafx-base-21.0.3.jar
+app.classpath=$APPDIR/javafx-controls-21.0.3-linux.jar
+app.classpath=$APPDIR/javafx-controls-21.0.3.jar
+app.classpath=$APPDIR/javafx-fxml-21.0.3-linux.jar
+app.classpath=$APPDIR/javafx-fxml-21.0.3.jar
+app.classpath=$APPDIR/javafx-graphics-21.0.3-linux.jar
+app.classpath=$APPDIR/javafx-graphics-21.0.3.jar
+app.classpath=$APPDIR/javafx-media-21.0.3-linux.jar
+app.classpath=$APPDIR/javafx-media-21.0.3.jar
+app.classpath=$APPDIR/logback-classic-1.4.14.jar
+app.classpath=$APPDIR/logback-core-1.4.14.jar
+app.classpath=$APPDIR/slf4j-api-2.0.12.jar
+app.classpath=$APPDIR/sqlite-jdbc-3.45.3.0.jar
+
+[JavaOptions]
+java-options=--module-path=$APPDIR
+java-options=--add-modules=javafx.controls,javafx.fxml,javafx.media
+java-options=--add-opens=javafx.graphics/com.sun.javafx.application=ALL-UNNAMED
+java-options=--add-opens=javafx.base/com.sun.javafx.collections=ALL-UNNAMED
+java-options=-Djpackage.app-version=1.0
+EOF
+          echo "=== FIXED KitapApp.cfg ==="
+          cat KitapApp.cfg
+      
+      - name: Re-tar Linux artifact
+        run: |
+          cd kitap-tatar
+          rm -f KitapApp-Linux.tar.gz
           tar -czf KitapApp-Linux.tar.gz -C installer_output kitap-app
       
       - name: Upload Linux artifact
