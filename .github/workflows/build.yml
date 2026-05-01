@@ -256,10 +256,18 @@ jobs:
           echo "=== custom-runtime/bin ==="
           ls -la custom-runtime/bin/
       
+      - name: Fix apt repositories (disable broken mirrors)
+        run: |
+          # Remove or fix broken Azure mirror if exists
+          sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/sources.list || true
+          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|http://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list || true
+          # Clean and update with retry logic
+          sudo apt-get clean
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10
+      
       - name: Install Linux dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libgl1-mesa-dev fakeroot
+          sudo apt-get install -y --no-install-recommends libgtk-3-dev libgl1-mesa-dev fakeroot
       
       - name: Build and prepare input directory
         run: |
@@ -324,6 +332,17 @@ jobs:
           EOF
           echo "=== FIXED KitapApp.cfg ==="
           cat KitapApp.cfg
+      
+      - name: Create startup script for Linux
+        run: |
+          cd kitap-tatar/installer_output/kitap-app
+          cat > run-kitapapp.sh << 'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          ./bin/kitap-app
+          EOF
+          chmod +x run-kitapapp.sh
+          echo "Created run-kitapapp.sh launcher"
       
       - name: Compress Linux artifact
         run: |
