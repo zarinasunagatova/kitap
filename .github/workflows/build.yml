@@ -55,6 +55,13 @@ jobs:
           Write-Host "=== Contents of jpackage-input ==="
           Get-ChildItem target\jpackage-input\
       
+      - name: Remove slf4j-simple from dependencies
+        run: |
+          cd kitap-tatar
+          Remove-Item -Force target\lib\slf4j-simple-*.jar -ErrorAction SilentlyContinue
+          Remove-Item -Force target\jpackage-input\slf4j-simple-*.jar -ErrorAction SilentlyContinue
+          Write-Host "Removed slf4j-simple if present"
+      
       - name: Create Windows executable
         run: |
           cd kitap-tatar
@@ -81,7 +88,6 @@ jobs:
             'app.mainclass=com.tatar.learn.KitapApp' + "`r`n" +
             'app.classpath=$APPDIR\gson-2.10.1.jar' + "`r`n" +
             'app.classpath=$APPDIR\kitap-tatar-app-1.0.0.jar' + "`r`n" +
-            'app.classpath=$APPDIR\commons-lang3-3.13.0.jar' + "`r`n" +
             'app.classpath=$APPDIR\commons-text-1.11.0.jar' + "`r`n" +
             'app.classpath=$APPDIR\javafx-base-21.0.3-win.jar' + "`r`n" +
             'app.classpath=$APPDIR\javafx-base-21.0.3.jar' + "`r`n" +
@@ -93,7 +99,9 @@ jobs:
             'app.classpath=$APPDIR\javafx-graphics-21.0.3.jar' + "`r`n" +
             'app.classpath=$APPDIR\javafx-media-21.0.3-win.jar' + "`r`n" +
             'app.classpath=$APPDIR\javafx-media-21.0.3.jar' + "`r`n" +
-            'app.classpath=$APPDIR\slf4j-api-1.7.36.jar' + "`r`n" +
+            'app.classpath=$APPDIR\logback-classic-1.4.14.jar' + "`r`n" +
+            'app.classpath=$APPDIR\logback-core-1.4.14.jar' + "`r`n" +
+            'app.classpath=$APPDIR\slf4j-api-2.0.12.jar' + "`r`n" +
             'app.classpath=$APPDIR\sqlite-jdbc-3.45.3.0.jar' + "`r`n" +
             "`r`n" +
             '[JavaOptions]' + "`r`n" +
@@ -178,6 +186,13 @@ jobs:
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
       
+      - name: Remove slf4j-simple from dependencies
+        run: |
+          cd kitap-tatar
+          rm -f target/lib/slf4j-simple-*.jar
+          rm -f target/jpackage-input/slf4j-simple-*.jar 2>/dev/null || true
+          echo "Removed slf4j-simple if present"
+      
       - name: Create macOS app
         run: |
           cd kitap-tatar
@@ -255,6 +270,13 @@ jobs:
           fi
           echo "=== Contents of jpackage-input ==="
           ls -la target/jpackage-input/
+      
+      - name: Remove slf4j-simple from dependencies
+        run: |
+          cd kitap-tatar
+          rm -f target/lib/slf4j-simple-*.jar
+          rm -f target/jpackage-input/slf4j-simple-*.jar 2>/dev/null || true
+          echo "Removed slf4j-simple if present"
       
       - name: Create Linux executable
         run: |
